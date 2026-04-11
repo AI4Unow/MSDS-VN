@@ -21,9 +21,9 @@ Stripe billing (MoMo/VNPay deferred post-MVP per brainstorm), marketing landing,
 - Plan tiers enforced via feature gates (brainstorm §11)
 - Marketing landing page (Vietnamese + English)
 - Waitlist → onboarding conversion flow
-- VN lawyer-reviewed EULA + privacy policy
+- VN lawyer-reviewed EULA + privacy policy — **must include AI-output disclaimer, 12-month-fees liability cap, venue clause, consultant-review-as-evidence recital**
 - Sentry + Vercel Analytics in production
-- E&O insurance quote obtained (brainstorm risk §8)
+- **E&O insurance (UQ #5 — DECIDED 2026-04-11):** NOT purchased at launch. Decision: rely on EULA liability cap + AI-output disclaimer + human-in-the-loop review UI (phase-03) + EHS-consultant-reviewed wiki + first-50-cards consultant sign-off (phase-06) as the complete defensive stack. Reassess if (a) first legal threat received, (b) >10 paying customers, or (c) any enterprise prospect requires proof of coverage in procurement. **Risk owned explicitly by founder.** Document decision + reassessment triggers in `docs/system-architecture.md` risk log.
 - Asia Shine paid conversion
 - 3+ design partners actively using
 - Public beta announcement
@@ -97,11 +97,17 @@ create policy "org members read usage" on usage_counters
 10. Waitlist form → email capture → Resend welcome email
 11. Analytics: Vercel Analytics + PostHog for funnel tracking
 
-### Legal
-12. VN lawyer engaged (from Phase 00 shortlist) for EULA + privacy + DPA review (~5–10M VND budget per brainstorm §12)
-13. Publish legal pages
+### Legal (primary shield — no E&O fallback)
+12. VN lawyer engaged (from Phase 00 shortlist) for EULA + privacy + DPA review (~5–10M VND budget per brainstorm §12). **EULA non-negotiable clauses:**
+    - Explicit disclaimer: all AI-generated safety cards + chat answers are advisory only; customer remains legally responsible for MOIT compliance verification
+    - Liability cap: 12 months of fees paid to SDS Platform, not to exceed 30M VND per claim
+    - Indemnification: customer indemnifies platform for losses arising from customer's reliance without their own verification
+    - Venue clause: lawyer's call (Singapore arbitration likely, VN courts secondary)
+    - Recital: customer acknowledges EHS-consultant-reviewed regulation corpus + human-review-UI + consultant sign-off on first 50 cards as material diligence
+    - Kill switch: platform reserves right to suspend account if customer misuses outputs (e.g., prints cards without required internal review)
+13. Publish legal pages; add persistent "AI-generated, verify before use" disclaimer footer on every safety card PDF + chat message
 14. Cookie banner for VN compliance
-15. Obtain E&O insurance quote from VN broker (brainstorm risk §8 — buy after first paying customer)
+15. **No E&O purchase at launch.** Instead: write risk log entry in `docs/system-architecture.md` documenting Q5 decision, the four defensive controls (EULA, disclaimer, human review, consultant gate), and the three reassessment triggers (first threat / >10 customers / enterprise procurement demand)
 
 ### Monitoring + Launch
 16. Sentry configured with source maps + user context
@@ -121,8 +127,9 @@ create policy "org members read usage" on usage_counters
 - [ ] Landing page (VN + EN)
 - [ ] Pricing page
 - [ ] Waitlist → onboarding
-- [ ] Legal pages (lawyer-reviewed)
-- [ ] E&O insurance quote
+- [ ] Legal pages (lawyer-reviewed) — EULA with 6 non-negotiable clauses above
+- [ ] AI-output disclaimer footer on every card PDF + chat message
+- [ ] Risk log in `docs/system-architecture.md` (Q5 decision + reassessment triggers)
 - [ ] Sentry + analytics + uptime
 - [ ] Asia Shine paid conversion
 - [ ] 3 design partners active

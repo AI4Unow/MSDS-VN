@@ -23,6 +23,7 @@ status: not-started
 - Claude Sonnet translation pipeline with locked MOIT terminology glossary
 - PDF rendering (react-pdf or Puppeteer on Vercel)
 - QR code → public mobile-friendly view (no login, token-gated)
+- **Access mode (UQ #7 — DECIDED 2026-04-11):** Default `public_token` (unguessable 128-bit token, no login). Rationale: incident-response UX wins — a warehouse worker at 2am on a shared phone cannot fight a login wall. Per-org `card_access_mode` setting lets paranoid enterprise buyers flip to `login_required`. Token rotation on demand + rate-limit (60 req/min/IP) + optional expiry bound the leak risk. Document leak scenario + mitigations in landing-page FAQ.
 - Versioning: regenerate on extraction edit
 - EHS consultant reviews first 50 cards (brainstorm risk mitigation)
 
@@ -61,7 +62,8 @@ create table safety_cards (
   org_id uuid not null references organizations(id),
   locale text not null default 'vi',
   pdf_url text,
-  qr_token text unique not null,        -- url-safe random 32-char
+  qr_token text unique not null,        -- url-safe nanoid 32-char (128-bit entropy)
+  token_expires_at timestamptz,         -- nullable; set on rotation or org policy
   template_version text not null,       -- "moit-v1-2026-04"
   source_extraction_id uuid references sds_extractions(id),
   status text default 'pending' check (status in ('pending','generating','ready','failed','superseded')),
@@ -99,9 +101,11 @@ create policy "org members" on safety_cards
    - Update status → `ready`
 7. Build `/public/card/[token]/page.tsx`:
    - Server component, no auth
-   - Fetch card by token only (token = capability)
+   - Fetch card by token only (token = capability); check `token_expires_at` if set
+   - Read org's `card_access_mode`: if `login_required`, redirect to `/login?next=/public/card/{token}`
    - Mobile-first layout, print-friendly
-   - Brainstorm UQ #7: default to public-by-token (warehouse worker UX wins), but make it a per-org setting (default ON, settings toggle in Phase 08)
+   - Edge middleware rate-limit: 60 req/min/IP (Vercel KV or Upstash)
+   - `X-Robots-Tag: noindex` header — unlisted, not indexed
 8. QR code generation: use `qrcode` npm package, encode `{origin}/public/card/{token}`
 9. SDS detail page: "Generate VI Card" button → shows progress → download PDF + share QR image
 10. Versioning: when `sds_extractions` updates (user edits in review), mark existing cards `superseded`, trigger regenerate
@@ -131,9 +135,9 @@ create policy "org members" on safety_cards
 - Regenerating after an edit marks old card `superseded` and keeps audit trail
 
 ## Risk Assessment
-- **Risk (high):** Mistranslation of hazard statements → legal liability. **Mitigation:** Locked glossary + consultant review gate + EULA disclaimer + E&O insurance before beta.
+- **Risk (high):** Mistranslation of hazard statements → legal liability. **Mitigation stack (no E&O — UQ #5 decided no-insurance):** (1) locked MOIT glossary — Claude cannot paraphrase hazard statements; (2) EHS consultant reviews + signs off on glossary before launch; (3) EHS consultant reviews first 50 generated cards before public beta; (4) human-in-the-loop review UI (phase-03) — user approves extraction before card generation; (5) persistent "AI-generated, verify before use" disclaimer on every card PDF footer; (6) EULA liability cap at 12 months of fees; (7) customer indemnification clause. **This stack is the entire shield. If any control is skipped, the launch is blocked.**
 - **Risk:** react-pdf layout doesn't match MOIT Appendix I exactly. **Mitigation:** Appendix I is a content specification (table format), not a fixed PDF layout — flexible rendering is compliant; still verify with EHS consultant.
-- **Risk:** Public QR leaks chemical inventory. **Mitigation:** Per-org toggle, token rotation on demand, optional login gate.
+- **Risk:** Public QR leaks chemical inventory (sticker photo on social media → anyone sees the card). **Mitigation:** (a) per-org `card_access_mode` toggle → `login_required` for enterprise; (b) token rotation endpoint (rotate → regenerate QR → reprint); (c) optional `token_expires_at` per card; (d) edge rate-limit 60 req/min/IP; (e) `noindex` header; (f) landing-page FAQ documents the leak scenario honestly.
 
 ## Security Considerations
 - QR tokens are capabilities — rotate on org demand

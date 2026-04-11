@@ -161,6 +161,7 @@ Anh/chị có thể nhận lời không ạ?
 17. Is the QR-code-to-mobile view useful, or does it add complexity?
 18. What would you NOT trust the AI to do?
 19. Would you let the AI answer compliance questions ("Is chemical X restricted under VN law?") via chat?
+19a. **[Data residency probe — open-ended, do not lead]** "Where would you expect your SDS data to be stored?" If they don't volunteer concerns, follow-up: "If I told you our servers are in Singapore (not Vietnam), would that be a problem for your company? Why?" Record as: `not-a-concern` / `soft-preference` / `hard-blocker`. Used to decide Supabase region migration trigger (≥30% hard-blocker → evaluate VN self-hosted before Phase 08).
 
 ### Section D — Commercial (minutes 22–27)
 20. If this existed today at 2.49M VND/month for unlimited cards, would you buy it?

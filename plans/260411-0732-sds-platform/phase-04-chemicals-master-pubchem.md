@@ -15,6 +15,8 @@ status: not-started
 ## Overview
 Global `chemicals` master table keyed by CAS. PubChem REST API enrichment. Link extracted SDS components to chemical master. Full-text search across SDSs and chemicals.
 
+> **2026 regulatory hook:** Circular 01/2026/TT-BCT **Appendix XIX** lists 10 priority hazardous chemicals in products requiring mandatory disclosure: Acetone, Cadmium, Chromium(VI), Formaldehyde, Hydrogen chloride, Lead, Mercury, Methanol, Sulfuric acid, Toluene. These MUST be seeded first with `vn_restricted=true` (or more specifically `vn_appendix_xix=true`) and shown as priority in UI.
+
 ## Requirements
 - `chemicals` table (global, read-only for users)
 - `sds_chemicals` join table (weight %, is_main)
@@ -54,7 +56,9 @@ create table chemicals (
   hazards jsonb,                        -- physical, health, environmental arrays
   physical jsonb,                       -- boiling_point, flash_point, etc.
   reach_svhc boolean default false,
-  vn_restricted boolean default false,  -- flag for brainstorm UQ regulatory lookup
+  vn_restricted boolean default false,  -- Decree 24/2026/ND-CP restricted chemicals
+  vn_appendix_xix boolean default false, -- Circular 01/2026 Appendix XIX priority disclosure
+  vn_special_control_group int,         -- Decree 24/2026 Group 1 or 2, null if not listed
   source text default 'pubchem',
   updated_at timestamptz default now()
 );
@@ -94,7 +98,8 @@ create policy "org members" on sds_chemicals
 8. Build chemical detail page: identification, GHS, hazards, physical props, list of SDSs containing it (filtered by org)
 9. Build global search (cmd-k): fuzzy across SDSs (filename + supplier) + chemicals (CAS + name) + (Phase 05) wiki pages
 10. Unified search API: Postgres `to_tsvector` + `ts_rank` + `unaccent` extension (handles VN diacritics)
-11. Seed 200 common lab chemicals via PubChem batch to prime cache
+11. **Seed Appendix XIX priority list first** (10 chemicals): Acetone (67-64-1), Cadmium (7440-43-9), Chromium(VI) (18540-29-9), Formaldehyde (50-00-0), HCl (7647-01-0), Lead (7439-92-1), Mercury (7439-97-6), Methanol (67-56-1), H₂SO₄ (7664-93-9), Toluene (108-88-3) — all flagged `vn_appendix_xix=true`
+12. Seed 200 common lab chemicals via PubChem batch to prime cache
 
 ## Todo List
 - [ ] Migration 0004
@@ -106,6 +111,7 @@ create policy "org members" on sds_chemicals
 - [ ] Chemical detail page
 - [ ] Global cmd-k search
 - [ ] Unified search API with ts_rank
+- [ ] Seed Appendix XIX 10 priority chemicals (flagged)
 - [ ] Seed 200 common chemicals
 - [ ] `pnpm build` green
 

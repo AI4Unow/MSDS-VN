@@ -13,13 +13,13 @@ status: not-started
 - Depends on: Phase 01 (base org schema)
 
 ## Overview
-Turn single-user orgs into real teams. Invites, roles, per-org settings, audit log. Foundation for contract expansion (brainstorm: "multi-seat = contract expansion").
+Turn single-user orgs into real teams. Invites, roles, per-org settings. Foundation for contract expansion (brainstorm: "multi-seat = contract expansion"). **Note:** Basic audit_log table + helper already exist from Phase 01 (red team rec); this phase extends audit coverage to all mutations + adds audit log viewer UI.
 
 ## Requirements
 - Org creation separate from personal auto-org
 - Email invites with token links
 - Roles: owner / admin / member / viewer (brainstorm §5)
-- Per-org settings: default locale, safety card public toggle (brainstorm UQ #7), logo upload
+- Per-org settings: default locale, `card_access_mode` (`public_token` default vs `login_required`), logo upload — UQ #7 resolved in Phase 06
 - Audit log: all writes tracked (who / what / when)
 - Org switcher in user menu
 
@@ -45,7 +45,8 @@ Turn single-user orgs into real teams. Invites, roles, per-org settings, audit l
 ```sql
 -- extend organizations
 alter table organizations add column logo_url text;
-alter table organizations add column settings jsonb default '{"safety_card_public": true, "default_locale": "vi"}'::jsonb;
+alter table organizations add column card_access_mode text not null default 'public_token' check (card_access_mode in ('public_token','login_required'));
+alter table organizations add column settings jsonb default '{"default_locale": "vi"}'::jsonb;
 
 create table org_invites (
   id uuid primary key default gen_random_uuid(),
@@ -94,7 +95,7 @@ create policy "org members read audit" on audit_log for select using (org_id = (
    - Admin invites email + role → insert `org_invites` with token + 7d expiry → send email via Resend
    - Invitee receives email → clicks `/accept-invite/{token}` → if logged in: add to `users` table, redirect to new org; if not: sign up first, then accept
 6. Build members page: table of users with role select (owner can change), remove button (with confirmation)
-7. Build org settings page: name, logo upload, default locale, safety card public toggle
+7. Build org settings page: name, logo upload, default locale, `card_access_mode` radio (`public_token` | `login_required`) with inline copy explaining the tradeoff + token-rotation button per card
 8. Build org switcher in user menu: list orgs user belongs to, current highlighted, click → update active org
 9. Implement `requireRole()` server helper + apply to admin-only routes (wiki editor, settings, billing)
 10. Audit log viewer page: `/settings/audit` — filterable by action/user/date, export CSV

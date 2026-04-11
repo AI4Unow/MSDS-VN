@@ -10,7 +10,7 @@ status: not-started
 
 ## Context
 - Brainstorm §4 (differentiator #4), §5 "Request flow — Compliance Chat", §6 (LLM Wiki)
-- Depends on: Phase 05 (wiki corpus + embeddings)
+- Depends on: Phase 05 (wiki corpus + index.md)
 
 ## Overview
 Chat interface answering VN chemical compliance questions, grounded in the LLM Wiki. Every answer includes citation links to wiki pages (legal defensibility). Hybrid retrieval: pgvector (semantic) + tsvector (keyword).
@@ -19,7 +19,7 @@ Chat interface answering VN chemical compliance questions, grounded in the LLM W
 
 ## Requirements
 - Chat UI (streamed responses)
-- Hybrid RAG retrieval over `wiki_embeddings` + `wiki_pages` full-text
+- **Index-driven retrieval** (per Karpathy wiki pattern): LLM reads `index.md` → picks pages → reads full page content via tool-use → answers with citations. No embeddings, no hybrid search.
 - Claude Sonnet 4.6 for answering (with citations)
 - Citations UI: inline [1][2] linking to wiki pages
 - Session persistence + history
@@ -28,10 +28,9 @@ Chat interface answering VN chemical compliance questions, grounded in the LLM W
 ## Related Files
 **Create:**
 - `supabase/migrations/0007_chat.sql`
-- `src/lib/chat/retriever.ts` — hybrid search (pgvector + tsvector)
-- `src/lib/chat/rerank.ts` — optional: Cohere rerank or Claude-based rerank top-20 → top-5
+- `src/lib/chat/wiki-tools.ts` — tool-use definitions: `read_wiki_index()`, `read_wiki_page(slug)`, `list_wiki_pages(category)`
 - `src/lib/chat/citation-formatter.ts`
-- `src/lib/chat/chat-agent.ts` — Claude pipeline with tool-use for wiki search
+- `src/lib/chat/chat-agent.ts` — Claude pipeline with tool-use loop
 - `src/app/(app)/chat/page.tsx` — chat UI
 - `src/app/(app)/chat/[sessionId]/page.tsx` — session view
 - `src/app/api/chat/route.ts` — SSE streaming endpoint
@@ -56,7 +55,7 @@ create table chat_messages (
   session_id uuid not null references chat_sessions(id) on delete cascade,
   role text not null check (role in ('user','assistant','system')),
   content text not null,
-  citations jsonb default '[]',         -- [{wiki_slug, chunk_idx, relevance}]
+  citations jsonb default '[]',         -- [{wiki_slug, title}]
   model text,
   input_tokens int,
   output_tokens int,
@@ -75,17 +74,19 @@ create policy "own messages" on chat_messages
 
 ## Implementation Steps
 1. Apply migration 0007
-2. Implement hybrid retriever:
-   - Embed query (same provider as Phase 05)
-   - pgvector query: `order by embedding <=> query_embedding limit 20`
-   - tsvector query: `where to_tsvector('simple', content_md) @@ websearch_to_tsquery(query) limit 20`
-   - Merge + dedupe → top 10
-   - Optional rerank step (Claude-based): "Rate 0–1 how well each passage answers the question" → keep top 5
-3. Implement `chat-agent.ts`:
-   - Build context: retrieved chunks + metadata
-   - System prompt: "You are a VN chemical compliance assistant. Answer using ONLY the provided wiki sources. Cite with [n] inline. If no relevant source, say so — do not guess. All regulatory claims must cite a regulation page."
+2. Implement `wiki-tools.ts` — Anthropic tool-use definitions:
+   - `read_wiki_index()` → returns the current `index.md` content
+   - `read_wiki_page(slug: string)` → returns full page content_md + frontmatter
+   - `list_wiki_pages(category: string)` → returns `[{slug, title, one_liner}]` for fallback browsing
+3. Implement `chat-agent.ts` with tool-use agent loop:
+   - **Turn 1:** System prompt + user query. Claude calls `read_wiki_index()` first.
+   - **Turn 2:** Claude picks relevant page slugs from the index → calls `read_wiki_page(slug)` (possibly multiple times, parallel tool calls).
+   - **Turn 3:** Claude synthesizes answer with inline `[1][2]` citations mapped to page slugs.
+   - Bounded loop: max 5 tool-call rounds per user turn (prevent runaway).
+   - System prompt: "You are a VN chemical compliance assistant. Always read the wiki index first. Answer using ONLY content from wiki pages you have read. Cite inline `[n]` referencing wiki slugs. If no relevant page exists, say so — do not guess. All regulatory claims must cite a `regulations/*` page."
+   - Prompt caching on the system prompt + index content (90% of tokens, stable).
    - Model routing: Haiku for single-hop questions (detected by keyword heuristic), Sonnet for multi-hop or regulatory interpretation
-   - Stream response + parse citations
+   - Stream response + parse citations from final assistant message
 4. Build chat UI:
    - Message list with user/assistant bubbles
    - Inline citation chips `[1]` → click opens wiki page in side drawer
@@ -98,9 +99,9 @@ create policy "own messages" on chat_messages
 
 ## Todo List
 - [ ] Migration 0007
-- [ ] Hybrid retriever (pgvector + tsvector + merge)
-- [ ] Optional reranker
-- [ ] Chat agent with citation parsing
+- [ ] Wiki tool-use definitions (`read_wiki_index`, `read_wiki_page`, `list_wiki_pages`)
+- [ ] Chat agent with tool-use loop (max 5 rounds)
+- [ ] Prompt caching on system prompt + index
 - [ ] SSE streaming endpoint
 - [ ] Chat UI (streamed, session sidebar)
 - [ ] Citation drawer opening wiki page

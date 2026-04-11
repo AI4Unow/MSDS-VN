@@ -75,6 +75,8 @@ create policy "org members" on sds_documents
 1. Write + apply migration 0002
 2. Create Storage bucket `sds-files`, path pattern `{org_id}/{sds_id}/{filename}`, RLS policies for bucket (org members only)
 3. Install Inngest: `pnpm add inngest`, add `src/inngest/client.ts`, mount `/api/inngest`
+   - Configure retry logic: exponential backoff, max 3 retries per function (red team rec #13)
+   - Configure dead-letter / failed-job alerting (log to Sentry or console at minimum)
 4. Build upload dropzone component (shadcn + react-dropzone)
 5. Upload flow:
    - Compute sha256 client-side → dedupe check
@@ -91,7 +93,7 @@ create policy "org members" on sds_documents
 ## Todo List
 - [ ] Migration 0002 applied
 - [ ] Storage bucket + policies
-- [ ] Inngest client + handler route
+- [ ] Inngest client + handler route (with retry logic: exponential backoff, 3 retries)
 - [ ] Upload dropzone UI
 - [ ] sha256 dedupe
 - [ ] Signed URL upload flow

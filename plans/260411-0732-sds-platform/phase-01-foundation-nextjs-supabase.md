@@ -24,8 +24,8 @@ Production-grade Next.js 15 monorepo with Supabase (Postgres + Auth + Storage + 
 - Deployed to Vercel with preview deployments
 
 ## Key Decisions (from brainstorm Unresolved Questions)
-- **Data residency (UQ #1):** Start Supabase **ap-southeast-1 (Singapore)**. Monitor VN pharma interview feedback — if blocker, evaluate self-hosted on VN VPS by Phase 08.
-- Region is a hard decision to reverse; capture rationale in commit message + `docs/system-architecture.md`.
+- **Data residency (UQ #1) — DEFERRED per red team review:** Default to **Supabase ap-southeast-1 (Singapore)**. Decision deferred until after Phase 00 interviews. If ≥30% of interviews flag VN-resident storage as a hard blocker, switch to VN-hosted Supabase before provisioning. Phase 00 interview Q4 explicitly probes this. Document in `docs/system-architecture.md` commit.
+- **Audit logging (red team rec #12):** Basic audit_log table + helper added to Phase 01 scope (moved from Phase 08). Security baseline, not a nice-to-have.
 
 ## Related Files
 **Create:**
@@ -39,7 +39,7 @@ Production-grade Next.js 15 monorepo with Supabase (Postgres + Auth + Storage + 
 - `src/middleware.ts` — route protection
 - `src/components/ui/*` (shadcn init)
 - `src/components/app-shell/sidebar.tsx`, `top-nav.tsx`, `user-menu.tsx`
-- `supabase/migrations/0001_init.sql` — organizations, users, RLS scaffolding
+- `supabase/migrations/0001_init.sql` — organizations, users, audit_log, RLS scaffolding
 - `.github/workflows/ci.yml`
 - `docs/system-architecture.md` — starter doc
 - `docs/code-standards.md` — starter doc
@@ -52,7 +52,8 @@ Production-grade Next.js 15 monorepo with Supabase (Postgres + Auth + Storage + 
 5. Write migration `0001_init.sql`:
    - `organizations` (id uuid, name text, locale text default 'vi', plan text default 'free', created_at)
    - `users` (supabase_auth_id uuid pk, org_id fk, role text check in ('owner','admin','member','viewer'))
-   - RLS enabled on both; policies: `org_id = auth.jwt()->>'org_id'` via a helper function
+   - `audit_log` (id bigserial, org_id fk, user_id fk, action text, target_type text, target_id text, metadata jsonb, ip_address inet, ts timestamptz) — red team rec: security baseline from day 1
+   - RLS enabled on all tables; policies: `org_id = auth.jwt()->>'org_id'` via a helper function
    - Trigger: on `auth.users` insert → create personal `organizations` row + `users` row
 6. Implement Supabase clients (browser / server / middleware) per @supabase/ssr docs. Use docs-seeker if stale.
 7. Build `/login` page: email magic link + Google OAuth button
@@ -67,7 +68,8 @@ Production-grade Next.js 15 monorepo with Supabase (Postgres + Auth + Storage + 
 - [ ] Scaffold Next.js 15 + shadcn
 - [ ] Create Supabase project (ap-southeast-1)
 - [ ] Enable pgvector + extensions
-- [ ] Write 0001_init.sql migration with RLS
+- [ ] Write 0001_init.sql migration with RLS + audit_log table
+- [ ] Implement auditLog() helper (src/lib/audit/log.ts)
 - [ ] Implement Supabase SSR clients
 - [ ] Magic link + Google OAuth login
 - [ ] Auth guard middleware
