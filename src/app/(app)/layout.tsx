@@ -9,7 +9,7 @@ export default async function AppLayout({
   const mockUser = {
     id: "dev-user",
     name: "Dev User",
-    email: "dev@msds.local",
+    email: "dev@ai4u.now",
     orgId: "dev-org",
   };
 

@@ -16,7 +16,7 @@ export default async function SettingsPage() {
           </p>
           <p className="text-sm">
             <span className="text-muted-foreground">Email:</span>{" "}
-            dev@msds.local
+            dev@ai4u.now
           </p>
         </div>
       </section>
