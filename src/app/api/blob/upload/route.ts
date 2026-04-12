@@ -1,8 +1,22 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
+const MAX_PDF_SIZE = 25 * 1024 * 1024; // 25MB
+
 export async function POST(request: Request) {
   const orgId = "dev-org";
+
+  // Validate Content-Length header before processing
+  const contentLength = request.headers.get("content-length");
+  if (contentLength) {
+    const size = parseInt(contentLength, 10);
+    if (size > MAX_PDF_SIZE) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_PDF_SIZE / 1024 / 1024}MB` },
+        { status: 413 }
+      );
+    }
+  }
 
   try {
     const body = (await request.json()) as HandleUploadBody;
@@ -16,7 +30,7 @@ export async function POST(request: Request) {
         }
         return {
           allowedContentTypes: ["application/pdf"],
-          maximumSizeInBytes: 25 * 1024 * 1024,
+          maximumSizeInBytes: MAX_PDF_SIZE,
           metadata: { orgId },
         };
       },

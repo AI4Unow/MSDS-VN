@@ -1,7 +1,7 @@
 import { requireOrg } from "@/lib/auth/require-org";
 import { db } from "@/lib/db/client";
 import { chemicals } from "@/lib/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, or, like, and } from "drizzle-orm";
 import { Flask, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
 export default async function ChemicalsPage({
@@ -24,7 +24,13 @@ export default async function ChemicalsPage({
         .select()
         .from(chemicals)
         .where(
-          sql`${chemicals.orgId} = ${orgId} AND (${chemicals.name} ILIKE ${`%${q}%`} OR ${chemicals.casNumber} ILIKE ${`%${q}%`})`
+          and(
+            eq(chemicals.orgId, orgId),
+            or(
+              like(chemicals.name, `%${q}%`),
+              like(chemicals.casNumber, `%${q}%`)
+            )
+          )
         )
         .orderBy(desc(chemicals.createdAt))
         .limit(100)

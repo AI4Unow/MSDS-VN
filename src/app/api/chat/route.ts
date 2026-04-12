@@ -1,12 +1,23 @@
 import { requireOrg } from "@/lib/auth/require-org";
 import { runChat } from "@/lib/chat/chat-agent";
 import { convertToModelMessages, type UIMessage } from "ai";
+import { rateLimit } from "@/lib/rate-limit";
 
 const MAX_MESSAGES = 50;
 const MAX_CONTENT_LENGTH = 10_000;
 
 export async function POST(req: Request) {
   const { orgId, userId } = await requireOrg();
+  
+  // Rate limit: 10 requests per minute per user
+  const rateLimitResult = rateLimit(`chat:${userId}`, 10, 60_000);
+  if (!rateLimitResult.success) {
+    return Response.json(
+      { error: "Rate limit exceeded. Please try again later." },
+      { status: 429 }
+    );
+  }
+  
   const body = await req.json();
   const messages: UIMessage[] = body.messages ?? [];
 
