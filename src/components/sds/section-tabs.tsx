@@ -1,7 +1,7 @@
 "use client";
 
 import { SECTION_NAMES } from "@/lib/ai/extraction-schema";
-import { ConfidenceBadge } from "./confidence-badge";
+// ConfidenceBadge removed — using inline dot indicator instead
 
 type SectionConfidence = Record<string, number>;
 

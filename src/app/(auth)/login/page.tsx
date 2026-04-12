@@ -76,7 +76,7 @@ export default function LoginPage() {
           <form
             action={async (formData) => {
               "use server";
-              const email = formData.get("email") as string;
+              const _email = formData.get("email") as string;
               // Disable login
               // await signIn("resend", { email, redirectTo: "/dashboard" });
             }}

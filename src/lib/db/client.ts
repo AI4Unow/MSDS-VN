@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // import { drizzle } from "drizzle-orm/vercel-postgres";
 // import { sql } from "@vercel/postgres";
-import * as schema from "./schema";
+// import * as schema from "./schema";
 
-const createMockBuilder = (data: any = []) => {
-  const builder: any = new Proxy(
+const createMockBuilder = (data: unknown[] = []) => {
+  const builder: Record<string, unknown> = new Proxy(
     {},
     {
       get(target, prop) {
         if (prop === "then") {
-          return (resolve: any) => resolve(data);
+          return (resolve: (v: unknown) => void) => resolve(data);
         }
         if (prop === "catch" || prop === "finally") {
           return builder;
@@ -21,8 +22,8 @@ const createMockBuilder = (data: any = []) => {
 };
 
 // Export heavily mocked DB client to prevent missing POSTGRES_URL crashes
-export const db: any = new Proxy(
-  {},
+export const db = new Proxy(
+  {} as Record<string, unknown>,
   {
     get(target, prop) {
       if (
@@ -37,4 +38,4 @@ export const db: any = new Proxy(
       return createMockBuilder([]);
     },
   }
-);
+) as any; // single cast needed for drizzle API compatibility

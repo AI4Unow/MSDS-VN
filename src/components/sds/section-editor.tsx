@@ -10,7 +10,7 @@ type FieldValue = {
 };
 
 export function SectionEditor({
-  sectionKey,
+  sectionKey: _sectionKey,
   data,
 }: {
   sectionKey: string;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
-import { sdsExtractions, reviewQueue } from "@/lib/db/schema";
+import { reviewQueue } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 

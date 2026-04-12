@@ -2,7 +2,6 @@ import { requireOrg } from "@/lib/auth/require-org";
 import { db } from "@/lib/db/client";
 import { chemicals } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
-import Link from "next/link";
 import { Flask, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
 export default async function ChemicalsPage({
@@ -13,7 +12,7 @@ export default async function ChemicalsPage({
   const { orgId } = await requireOrg();
   const { q } = await searchParams;
 
-  let query = db
+  const query = db
     .select()
     .from(chemicals)
     .where(eq(chemicals.orgId, orgId))
@@ -72,6 +71,7 @@ export default async function ChemicalsPage({
               </tr>
             </thead>
             <tbody>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {docs.map((chem: any) => (
                 <tr
                   key={chem.id}

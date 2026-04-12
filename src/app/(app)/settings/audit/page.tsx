@@ -44,6 +44,7 @@ export default async function AuditLogPage() {
               </tr>
             </thead>
             <tbody>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {logs.map((log: any) => (
                 <tr key={log.id} className="border-b border-border/50">
                   <td className="py-3 pr-4 text-muted-foreground whitespace-nowrap">

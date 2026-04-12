@@ -1,10 +1,8 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db/client";
-import { users, accounts, sessions, verificationTokens, organizations } from "@/lib/db/schema";
-import { auditLog } from "@/lib/db/schema";
+import { users, organizations } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
@@ -29,7 +27,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     }),
   ],
   events: {
-    async signIn({ user, isNewUser }) {
+    async signIn({ user: _user, isNewUser: _isNewUser }) {
       // Mock db insertion
     },
   },
@@ -46,6 +44,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   },
 });
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function bootstrapPersonalOrg(user: {
   id: string;
   email?: string | null;

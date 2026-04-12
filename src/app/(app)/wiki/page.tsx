@@ -1,7 +1,6 @@
 import { requireOrg } from "@/lib/auth/require-org";
 import { db } from "@/lib/db/client";
 import { wikiPages } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { BookOpen } from "@phosphor-icons/react/dist/ssr";
 
 export default async function WikiPage() {
@@ -13,6 +12,7 @@ export default async function WikiPage() {
     .orderBy(wikiPages.category, wikiPages.title)
     .limit(100);
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const grouped = pages.reduce(
     (acc: Record<string, any[]>, page: any) => {
       const cat = page.category;
@@ -22,6 +22,7 @@ export default async function WikiPage() {
     },
     {} as Record<string, typeof pages>
   );
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   const categoryLabels: Record<string, string> = {
     regulation: "Quy định pháp luật",
@@ -47,6 +48,7 @@ export default async function WikiPage() {
               {categoryLabels[category] ?? category}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {(items as any[]).map((page: any) => (
                 <a
                   key={page.id}
