@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { FileText, Flask, ChatCircle, Warning } from "@phosphor-icons/react/dist/ssr";
 
 export default async function DashboardPage() {
 
   const stats = [
-    { label: "Tài liệu SDS", labelEn: "SDS Documents", value: "0", icon: FileText },
-    { label: "Hóa chất", labelEn: "Chemicals", value: "0", icon: Flask },
-    { label: "Phiếu an toàn", labelEn: "Safety Cards", value: "0", icon: Warning },
-    { label: "Câu hỏi tuân thủ", labelEn: "Chat Queries", value: "0", icon: ChatCircle },
+    { label: "Tài liệu SDS", labelEn: "SDS Documents", value: "0", icon: FileText, href: "/sds" },
+    { label: "Hóa chất", labelEn: "Chemicals", value: "0", icon: Flask, href: "/chemicals" },
+    { label: "Phiếu an toàn", labelEn: "Safety Cards", value: "0", icon: Warning, href: "/sds" },
+    { label: "Câu hỏi tuân thủ", labelEn: "Chat Queries", value: "0", icon: ChatCircle, href: "/chat" },
   ];
 
   return (
@@ -26,16 +27,17 @@ export default async function DashboardPage() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div
+            <Link
               key={stat.label}
-              className="rounded-lg border border-border bg-card p-4 space-y-2"
+              href={stat.href}
+              className="rounded-lg border border-border bg-card p-4 space-y-2 hover:bg-muted/50 cursor-pointer transition-colors"
             >
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Icon size={18} />
                 <span className="text-xs font-medium">{stat.label}</span>
               </div>
               <p className="text-2xl font-bold tabular-nums">{stat.value}</p>
-            </div>
+            </Link>
           );
         })}
       </div>

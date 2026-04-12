@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { wikiPages } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { FALLBACK_WIKI_INDEX, FALLBACK_WIKI_PAGES } from "./wiki-fallback-data";
 
 // Validate slug format: lowercase alphanumeric, hyphens, forward slashes
 const SLUG_RE = /^[a-z0-9][a-z0-9/-]*[a-z0-9]$/;
@@ -19,7 +20,8 @@ export const wikiTools = {
         .from(wikiPages)
         .where(eq(wikiPages.slug, "index"))
         .limit(1);
-      return { indexMd: index[0]?.contentMd ?? "Wiki index not found." };
+      const content = index[0]?.contentMd ?? FALLBACK_WIKI_INDEX;
+      return { indexMd: content };
     },
   }),
   read_wiki_page: tool({
@@ -36,7 +38,11 @@ export const wikiTools = {
         .from(wikiPages)
         .where(eq(wikiPages.slug, slug))
         .limit(1);
-      if (!page[0]) return { error: `Page "${slug}" not found.` };
+      if (!page[0]) {
+        const fallback = FALLBACK_WIKI_PAGES[slug];
+        if (fallback) return fallback;
+        return { error: `Page "${slug}" not found.` };
+      }
       return {
         title: page[0].title,
         category: page[0].category,
