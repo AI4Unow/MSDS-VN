@@ -72,7 +72,7 @@ export default async function ChemicalsPage({
               </tr>
             </thead>
             <tbody>
-              {docs.map((chem) => (
+              {docs.map((chem: any) => (
                 <tr
                   key={chem.id}
                   className="border-b border-border last:border-0 hover:bg-muted/30"

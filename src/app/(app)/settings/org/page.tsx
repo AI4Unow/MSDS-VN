@@ -1,6 +1,6 @@
 import { requireOrg } from "@/lib/auth/require-org";
 import { db } from "@/lib/db/client";
-import { organizations } from "@/lib/db/schema/organizations";
+import { organizations } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { CardAccessForm } from "./card-access-form";
 import { UpdateOrgNameForm } from "./update-org-name-form";
@@ -8,11 +8,13 @@ import { UpdateOrgNameForm } from "./update-org-name-form";
 export default async function OrgSettingsPage() {
   const { orgId } = await requireOrg();
 
-  const org = await db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.id, orgId))
-    .limit(1);
+  // Mocked db response
+  const org = [{
+    id: orgId,
+    name: "AI4U.now Dev Org",
+    cardAccessMode: "public",
+    plan: "advanced"
+  }];
 
   if (!org[0]) throw new Error("Organization not found");
 

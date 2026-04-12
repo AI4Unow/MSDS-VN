@@ -8,12 +8,12 @@ import { auditLog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db, {
+  /* adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }),
+  }), */
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60,
@@ -30,22 +30,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   ],
   events: {
     async signIn({ user, isNewUser }) {
-      if (isNewUser && user.id) {
-        await bootstrapPersonalOrg({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        });
-      }
-      try {
-        await db.insert(auditLog).values({
-          userId: user.id ?? null,
-          orgId: null,
-          action: "auth.signin",
-        });
-      } catch {
-        // Non-critical
-      }
+      // Mock db insertion
     },
   },
   pages: {

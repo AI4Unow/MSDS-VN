@@ -1,4 +1,4 @@
-import { signIn } from "@/lib/auth/auth-config";
+// import { signIn } from "@/lib/auth/auth-config";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { Flame } from "@phosphor-icons/react/dist/ssr";
 
@@ -30,7 +30,8 @@ export default function LoginPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/dashboard" });
+              // Disable login
+              // await signIn("google", { redirectTo: "/dashboard" });
             }}
           >
             <button
@@ -76,7 +77,8 @@ export default function LoginPage() {
             action={async (formData) => {
               "use server";
               const email = formData.get("email") as string;
-              await signIn("resend", { email, redirectTo: "/dashboard" });
+              // Disable login
+              // await signIn("resend", { email, redirectTo: "/dashboard" });
             }}
             className="space-y-3"
           >

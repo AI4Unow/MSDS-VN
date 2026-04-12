@@ -14,7 +14,7 @@ export default async function WikiPage() {
     .limit(100);
 
   const grouped = pages.reduce(
-    (acc, page) => {
+    (acc: Record<string, any[]>, page: any) => {
       const cat = page.category;
       if (!acc[cat]) acc[cat] = [];
       acc[cat].push(page);
@@ -47,7 +47,7 @@ export default async function WikiPage() {
               {categoryLabels[category] ?? category}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {items.map((page) => (
+              {(items as any[]).map((page: any) => (
                 <a
                   key={page.id}
                   href={`/wiki/${page.slug}`}
