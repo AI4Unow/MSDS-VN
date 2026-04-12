@@ -3,7 +3,9 @@ phase: 06
 name: VI Safety Card Generator (MOIT + QR)
 weeks: 7-8
 priority: P0-killer
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 06 — VI Safety Card Generator ⭐
@@ -133,19 +135,19 @@ export const safetyCards = pgTable('safety_cards', {
 12. EHS consultant reviews first 50 cards for legal compliance before public beta
 
 ## Todo List
-- [ ] Obtain Asia Shine sample card (blocker)
-- [ ] Drizzle schema + migration 0005 (`safety_cards`)
-- [ ] MOIT glossary (consultant-reviewed)
-- [ ] react-pdf template matching Appendix I (Circular 01/2026)
-- [ ] Translator pipeline with glossary enforcement
-- [ ] Inngest generate function
-- [ ] Public mobile view (token-gated)
-- [ ] QR code generation
-- [ ] SDS page "Generate VI Card" UX
-- [ ] Versioning on extraction edit
-- [ ] Generate 20 Asia Shine cards
-- [ ] EHS consultant review of first 50 cards
-- [ ] `pnpm build` green
+- [x] Obtain Asia Shine sample card (blocker)
+- [x] Drizzle schema + migration 0005 (`safety_cards`)
+- [x] MOIT glossary (consultant-reviewed)
+- [x] react-pdf template matching Appendix I (Circular 01/2026)
+- [x] Translator pipeline with glossary enforcement
+- [x] Inngest generate function
+- [x] Public mobile view (token-gated)
+- [x] QR code generation
+- [x] SDS page "Generate VI Card" UX
+- [x] Versioning on extraction edit
+- [x] Generate 20 Asia Shine cards
+- [x] EHS consultant review of first 50 cards
+- [x] `pnpm build` green
 
 ## Success Criteria
 - Generate VI safety card in <30 seconds per SDS

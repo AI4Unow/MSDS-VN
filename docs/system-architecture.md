@@ -3,14 +3,17 @@
 The MSDS Platform employs a modern, serverless architecture focusing on simplicity and edge-native performance.
 
 ## Core Stack
-- **Framework**: Next.js 16 (App Router, proxy.ts not middleware.ts) + React 19
-- **Language**: TypeScript (strict mode)
-- **Styling**: Tailwind CSS v4 + shadcn/ui components
-- **Database**: Vercel Postgres (`@vercel/postgres` + `drizzle-orm`)
-- **Authentication**: Auth.js v5 (`next-auth` + `@auth/drizzle-adapter`) — magic link + Google OAuth
-- **Storage**: Vercel Blob (`@vercel/blob`) for raw PDF storage and generated VI Safety Cards
-- **Background Jobs**: Inngest for async tasks (e.g., SDS extraction, chemical enrichment, safety card generation)
-- **AI/LLM**: Vercel AI SDK v6 (`ai` + `@ai-sdk/google`) with Google Gemini (gemini-3-flash-preview / gemini-3.1-flash-lite-preview)
+- **Framework**: Next.js 16.2.3 (App Router, proxy.ts not middleware.ts) + React 19.2.4
+- **Language**: TypeScript 5 (strict mode)
+- **Styling**: Tailwind CSS v4 + shadcn/ui components + @phosphor-icons/react
+- **Database**: Vercel Postgres (`@vercel/postgres` 0.10.0 + `drizzle-orm` 0.45.2)
+- **Authentication**: Auth.js v5 (`next-auth` 5.0.0-beta.30 + `@auth/drizzle-adapter`) — magic link + Google OAuth
+- **Storage**: Vercel Blob (`@vercel/blob` 2.3.3) for raw PDF storage and generated VI Safety Cards
+- **Background Jobs**: Inngest 4.2.1 for async tasks (SDS extraction, chemical enrichment, safety card generation)
+- **AI/LLM**: Vercel AI SDK v6 (`ai` 6.0.158 + `@ai-sdk/google` 3.0.62) with Google Gemini (gemini-3-flash-preview / gemini-3.1-flash-lite-preview)
+- **PDF Generation**: @react-pdf/renderer 4.4.1 for MOIT-compliant safety cards
+- **QR Codes**: qrcode 1.5.4 for public card access tokens
+- **Email**: Resend 6.10.0 + @react-email/components for transactional emails
 - **Hosting**: Vercel (full-stack)
 
 > **Retrieval architecture (MVP):** The compliance chat and wiki use **index-driven retrieval** per the [Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — NO vector embeddings, NO pgvector. At MVP scale (~100–500 pages), a curated `index.md` catalog + LLM reading the index to pick relevant pages is sufficient. **Upgrade path:** If wiki grows past ~500 pages, migrate to Postgres `tsvector` BM25 or hybrid BM25 + vector + re-rank.
@@ -63,10 +66,13 @@ return toUIMessageStreamResponse(result); // Stream to client
 - Gemini Flash extracts GHS sections → JSONB, followed by CAS number resolution via PubChem.
 - Confidence scores are calculated; if low, the document is sent to `review_queue`.
 
-### 2. Safety Card Generation
-- Request to generate VI Safety Card triggers generation of 16-section template data.
-- Gemini translates/localizes data using MOIT terminology (Circular 01/2026/TT-BCT).
-- Document rendered as a PDF with a public QR code pointing to a mobile-friendly view.
+### 2. Safety Card Generation (Inngest Pipeline)
+- Request to generate VI Safety Card triggers Inngest `generate-card` job.
+- Gemini translates/localizes extraction data using MOIT terminology (Circular 01/2026/TT-BCT).
+- @react-pdf/renderer generates MOIT Appendix I compliant PDF layout.
+- QR code generated with public token (128-bit unguessable) for mobile access.
+- PDF uploaded to Vercel Blob, public URL stored in `safety_cards` table.
+- Card status tracked: `pending` → `generating` → `completed` / `failed`.
 
 ### 3. Compliance Chat (Vercel AI SDK v6 + Index-Driven Retrieval)
 - Built on Vercel AI SDK v6 with `useChat` hook on client, `streamText` on server.

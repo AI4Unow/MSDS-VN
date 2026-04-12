@@ -3,7 +3,9 @@ phase: 01
 name: Foundation — Next.js + Vercel Postgres + Auth.js
 week: 1
 priority: P0
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 01 — Foundation (Vercel-native stack)
@@ -211,30 +213,30 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 20. Write starter docs: system-architecture (Vercel-native topology diagram), code-standards.
 
 ## Todo List
-- [ ] Scaffold Next.js 16 + shadcn
-- [ ] Provision Vercel Postgres (sin1) + Vercel Blob
-- [ ] Install Drizzle + Auth.js v5 + adapter deps
-- [ ] Write Drizzle schema (auth, organizations, audit_log)
-- [ ] Generate + apply `0000_init.sql` migration
-- [ ] Implement Auth.js v5 config (Resend magic link + Google OAuth + Drizzle adapter)
-- [ ] Bootstrap personal org on first signIn
-- [ ] Implement `requireOrg()` helper
-- [ ] Implement `auditLog()` helper
-- [ ] Implement Vercel Blob upload helper
-- [ ] Auth middleware for `(app)` route group
-- [ ] `/login` page + `/api/auth/[...nextauth]` handler
-- [ ] **Activate `ck:ui-ux-pro-max` + `ck:frontend-design` skills before any UI work** (see `plan.md § Frontend Design Standard`)
-- [ ] **Seed `docs/design-guidelines.md`** with locked design dials + aesthetic direction from `plan.md § Frontend Design Standard`. Must include: `Be Vietnam Pro` + `Geist`/`Manrope` font install, graphite + safety-amber color ramp as CSS variables, Phosphor icons setup, dark-mode defaults, the forbidden-copy wordlist, and the anti-slop "AI Tells" checklist copied inline for quick reference during code review.
-- [ ] Install fonts via `next/font/google` (Be Vietnam Pro + Geist) — verify Vietnamese diacritics render in all weights at 14/16/18 px
-- [ ] Tailwind v4 config: map design tokens (colors, spacing, typography scale, radius, shadow) from `docs/design-guidelines.md` to CSS variables. No raw hex in components.
-- [ ] App shell (sidebar, top nav, user menu) — **built against the seeded design system, not shadcn defaults**. Run anti-slop checklist before calling it done.
-- [ ] Typed env via `@t3-oss/env-nextjs`
-- [ ] Deploy to Vercel with preview URLs
-- [ ] GitHub Actions CI (typecheck + lint + drizzle-kit check)
-- [ ] Starter docs in `/docs`
-- [ ] Delete all `src/lib/supabase/*` and `supabase/migrations/*`
-- [ ] Remove `@supabase/*` packages from `package.json`
-- [ ] Run `pnpm build` — zero errors
+- [x] Scaffold Next.js 16 + shadcn
+- [x] Provision Vercel Postgres (sin1) + Vercel Blob
+- [x] Install Drizzle + Auth.js v5 + adapter deps
+- [x] Write Drizzle schema (auth, organizations, audit_log)
+- [x] Generate + apply `0000_init.sql` migration
+- [x] Implement Auth.js v5 config (Resend magic link + Google OAuth + Drizzle adapter)
+- [x] Bootstrap personal org on first signIn
+- [x] Implement `requireOrg()` helper
+- [x] Implement `auditLog()` helper
+- [x] Implement Vercel Blob upload helper
+- [x] Auth middleware for `(app)` route group
+- [x] `/login` page + `/api/auth/[...nextauth]` handler
+- [x] **Activate `ck:ui-ux-pro-max` + `ck:frontend-design` skills before any UI work** (see `plan.md § Frontend Design Standard`)
+- [x] **Seed `docs/design-guidelines.md`** with locked design dials + aesthetic direction from `plan.md § Frontend Design Standard`. Must include: `Be Vietnam Pro` + `Geist`/`Manrope` font install, graphite + safety-amber color ramp as CSS variables, Phosphor icons setup, dark-mode defaults, the forbidden-copy wordlist, and the anti-slop "AI Tells" checklist copied inline for quick reference during code review.
+- [x] Install fonts via `next/font/google` (Be Vietnam Pro + Geist) — verify Vietnamese diacritics render in all weights at 14/16/18 px
+- [x] Tailwind v4 config: map design tokens (colors, spacing, typography scale, radius, shadow) from `docs/design-guidelines.md` to CSS variables. No raw hex in components.
+- [x] App shell (sidebar, top nav, user menu) — **built against the seeded design system, not shadcn defaults**. Run anti-slop checklist before calling it done.
+- [x] Typed env via `@t3-oss/env-nextjs`
+- [x] Deploy to Vercel with preview URLs
+- [x] GitHub Actions CI (typecheck + lint + drizzle-kit check)
+- [x] Starter docs in `/docs`
+- [x] Delete all `src/lib/supabase/*` and `supabase/migrations/*`
+- [x] Remove `@supabase/*` packages from `package.json`
+- [x] Run `pnpm build` — zero errors
 
 ## Success Criteria
 - A new user can: hit `/login` → receive magic link email → click → land on `/dashboard` (empty state) → sign out

@@ -3,7 +3,9 @@ phase: 02
 name: SDS Upload + Inngest Pipeline (Vercel Blob)
 week: 2
 priority: P0
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 02 — SDS Upload + Inngest Pipeline
@@ -127,16 +129,16 @@ Client                         Server action                    Vercel Blob
 11. Register Inngest production endpoint; set `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` in Vercel.
 
 ## Todo List
-- [ ] Drizzle schema for `sds_documents` + migration 0001
-- [ ] `/api/blob/upload` token handler with `handleUpload`
-- [ ] Inngest client + `/api/inngest` handler (retries: 3)
-- [ ] Upload dropzone UI
-- [ ] sha256 client-side dedupe
-- [ ] `finalizeSdsUpload` server action (insert + dedupe + event)
-- [ ] Stub `extract-sds` Inngest function (status transitions)
-- [ ] SDS list view (RSC + polling)
-- [ ] SDS detail stub with Blob iframe preview
-- [ ] `pnpm build` green
+- [x] Drizzle schema for `sds_documents` + migration 0001
+- [x] `/api/blob/upload` token handler with `handleUpload`
+- [x] Inngest client + `/api/inngest` handler (retries: 3)
+- [x] Upload dropzone UI
+- [x] sha256 client-side dedupe
+- [x] `finalizeSdsUpload` server action (insert + dedupe + event)
+- [x] Stub `extract-sds` Inngest function (status transitions)
+- [x] SDS list view (RSC + polling)
+- [x] SDS detail stub with Blob iframe preview
+- [x] `pnpm build` green
 
 ## Success Criteria
 - User can upload a PDF from UI → appears in list within 5s → status transitions pending → extracting → ready (stub)

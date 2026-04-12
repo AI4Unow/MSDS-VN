@@ -3,7 +3,9 @@ phase: 07
 name: Compliance Chat (RAG + Citations) — Vercel AI SDK + Gemini
 week: 9
 priority: P0-differentiator
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 07 — Compliance Chat ⭐
@@ -185,22 +187,22 @@ Client uses `useChat` from `@ai-sdk/react` against `/api/chat`.
 12. Benchmark: run 20 test questions → EHS consultant grades → iterate prompts to hit ≥80% accuracy.
 
 ## Todo List
-- [ ] Drizzle schema + migration 0006 (`chat_sessions`, `chat_messages`)
-- [ ] `wiki-tools.ts` with three `tool()` definitions
-- [ ] `model-router.ts` heuristic
-- [ ] `chat-agent.ts` with `streamText` + `maxSteps: 5`
-- [ ] System prompt stable for Gemini context caching
-- [ ] `/api/chat` route handler with `requireOrg()` + session ownership check
-- [ ] Chat UI using `@ai-sdk/react` `useChat`
-- [ ] Tool-call step rendering (reading-wiki indicators)
-- [ ] Citation drawer opening wiki page
-- [ ] `onFinish` persister for assistant messages + `QUERY` log.md append
-- [ ] `/api/wiki/promote` route (admin-gated) → `topics/*.md` page via Phase 05 `promote-from-chat.ts`
-- [ ] Promote button on admin-visible assistant messages (hidden for non-admins)
-- [ ] Soft quota warning (free tier — 100 msgs/day/org)
-- [ ] 20-question benchmark set
-- [ ] EHS consultant scoring
-- [ ] `pnpm build` green
+- [x] Drizzle schema + migration 0006 (`chat_sessions`, `chat_messages`)
+- [x] `wiki-tools.ts` with three `tool()` definitions
+- [x] `model-router.ts` heuristic
+- [x] `chat-agent.ts` with `streamText` + `maxSteps: 5`
+- [x] System prompt stable for Gemini context caching
+- [x] `/api/chat` route handler with `requireOrg()` + session ownership check
+- [x] Chat UI using `@ai-sdk/react` `useChat`
+- [x] Tool-call step rendering (reading-wiki indicators)
+- [x] Citation drawer opening wiki page
+- [x] `onFinish` persister for assistant messages + `QUERY` log.md append
+- [x] `/api/wiki/promote` route (admin-gated) → `topics/*.md` page via Phase 05 `promote-from-chat.ts`
+- [x] Promote button on admin-visible assistant messages (hidden for non-admins)
+- [x] Soft quota warning (free tier — 100 msgs/day/org)
+- [x] 20-question benchmark set
+- [x] EHS consultant scoring
+- [x] `pnpm build` green
 
 ## Success Criteria
 - 20 canonical test questions scored by EHS consultant: ≥80% correct

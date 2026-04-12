@@ -2,8 +2,10 @@
 
 ## Tech Stack Lock
 - **Next.js 16 App Router**: Avoid Pages router entirely. Utilize React Server Components where possible for performance, and Client Components strictly where interactivity is needed.
-- **Supabase**: Use Supabase SSR auth patterns for Next.js 16. All tenant separation must be strictly enforced at the database level using Row Level Security (RLS).
+- **Vercel Postgres + Drizzle ORM**: All database operations via Drizzle. Tenant separation enforced via `org_id` column in multi-tenant tables.
+- **Auth.js v5**: Use `next-auth` 5.0.0-beta.30 with Drizzle adapter. Session management via database, not JWT.
 - **TypeScript**: Strict mode enabled. Define explicit interfaces for all database rows and API boundaries.
+- **Vercel AI SDK v6**: Use `streamText` + `convertToModelMessages` + `toUIMessageStreamResponse` patterns. Tools defined with `inputSchema` (Zod), not deprecated `parameters`.
 
 ## File Organization Requirements
 - Group files by business domain/feature rather than purely by file type (e.g., keep compliance chat logic, hooks, and components near each other).
@@ -12,7 +14,27 @@
 
 ## Database Rules
 - Every table schema must implement multi-tenancy via an `org_id` column unless the table is explicitly global (like chemical master data or wiki pages).
-- All DDL migrations should be scripted and managed through Supabase CLI.
+- All DDL migrations managed through Drizzle Kit (`drizzle-kit generate` → `drizzle-kit migrate`).
+- Use Drizzle schema definitions in `/src/lib/db/schema/` for type-safe queries.
+- Prefer Drizzle query builder over raw SQL for maintainability and type safety.
 
 ## Compliance
 - All LLM prompt engineering involving legal terms MUST adhere to the terminology definitions laid out in Vietnam Circular 01/2026/TT-BCT and Law on Chemicals 2025. Do NOT use legacy terms from 2007 laws.
+- MOIT glossary maintained in `/src/lib/safety-card/moit-glossary.ts` for consistent terminology.
+- Safety card generation must follow MOIT Appendix I layout requirements.
+
+## Security Patterns
+- Public safety cards use unguessable 128-bit tokens (nanoid), not sequential IDs.
+- Rate limiting: 60 req/min/IP on public card endpoints.
+- Audit logging required for: login/logout, SDS upload, extraction edits, card generation, org settings changes.
+- No PII in audit logs — use anonymized identifiers.
+- Card access mode toggle: `public_token` (default) vs `login_required` per organization.
+
+## AI/LLM Patterns (Vercel AI SDK v6)
+- **Client**: Use `useChat` hook from `ai/react` for streaming chat interfaces.
+- **Server**: Use `streamText` from `ai` with `google` provider from `@ai-sdk/google`.
+- **Message conversion**: Always use `convertToModelMessages()` to transform UI messages to `ModelMessage[]`.
+- **Tool definitions**: Use `inputSchema` (Zod) for tool parameters, not deprecated `parameters`.
+- **Response streaming**: Use `toUIMessageStreamResponse()` to stream responses to client.
+- **Model routing**: Implement cost-aware routing (Flash for simple, Pro for complex) in `/src/lib/chat/model-router.ts`.
+- **Pricing tracking**: Log token usage and costs per request for billing transparency.

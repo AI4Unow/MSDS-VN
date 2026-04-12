@@ -3,7 +3,9 @@ phase: 05
 name: LLM Wiki v0 — Regulatory Knowledge Base
 week: 6
 priority: P0
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 05 — LLM Wiki v0
@@ -149,22 +151,22 @@ export const wikiPages = pgTable('wiki_pages', {
 10. Test: upload a new SDS → chemical enriched → wiki page for that chemical appears within 2 minutes
 
 ## Todo List
-- [ ] Drizzle schema + migration 0004 (wiki_pages only — NO embeddings table)
-- [ ] Document retrieval decision in `docs/system-architecture.md`
-- [ ] `index-builder.ts` with size assertion
-- [ ] Fix legacy 32/2017-only refs → all now cite Circular 01/2026
-- [ ] Add `supersedes` + `one_liner` fields to schema.md
-- [ ] ~~Acquire remaining raw sources~~ — **DONE** (all acquired 2026-04-11)
-- [ ] Seed regulations (10 pages — extract from raw-sources/*.docx)
-- [ ] Seed 50 common chemicals
-- [ ] Materialize `index.md` + empty `log.md` + `schema` wiki rows after seeding
-- [ ] `log-writer.ts` append-to-top helper (consistent prefixes: INGEST / QUERY / LINT / PROMOTE)
-- [ ] Ingest-from-SDS Inngest function (with cross-page revision + index rebuild throttle + log append)
-- [ ] Nightly lint cron (contradictions, stale, orphans, dangling xrefs, index drift) → appends to log.md
-- [ ] `promote-from-chat.ts` — creates `topics/*.md` from approved chat answer
-- [ ] Wiki browser UI (public read) — include `/wiki/log` and `/wiki/index` views
-- [ ] Admin wiki editor
-- [ ] Nightly git snapshot job (post-MVP optional, stub now)
+- [x] Drizzle schema + migration 0004 (wiki_pages only — NO embeddings table)
+- [x] Document retrieval decision in `docs/system-architecture.md`
+- [x] `index-builder.ts` with size assertion
+- [x] Fix legacy 32/2017-only refs → all now cite Circular 01/2026
+- [x] Add `supersedes` + `one_liner` fields to schema.md
+- [x] ~~Acquire remaining raw sources~~ — **DONE** (all acquired 2026-04-11)
+- [x] Seed regulations (10 pages — extract from raw-sources/*.docx)
+- [x] Seed 50 common chemicals
+- [x] Materialize `index.md` + empty `log.md` + `schema` wiki rows after seeding
+- [x] `log-writer.ts` append-to-top helper (consistent prefixes: INGEST / QUERY / LINT / PROMOTE)
+- [x] Ingest-from-SDS Inngest function (with cross-page revision + index rebuild throttle + log append)
+- [x] Nightly lint cron (contradictions, stale, orphans, dangling xrefs, index drift) → appends to log.md
+- [x] `promote-from-chat.ts` — creates `topics/*.md` from approved chat answer
+- [x] Wiki browser UI (public read) — include `/wiki/log` and `/wiki/index` views
+- [x] Admin wiki editor
+- [x] Nightly git snapshot job (post-MVP optional, stub now)
 
 ## Success Criteria
 - Wiki contains ≥50 chemical pages + 10 regulation pages + `index`, `log`, `schema` meta pages seeded

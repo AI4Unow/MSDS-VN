@@ -36,12 +36,14 @@ The MVP rollout for the MSDS Platform is complete. All 9 implementation phases d
 - Nightly lint cron (2am) with index drift detection and rebuild.
 - Wiki browser pages and admin editor.
 
-## Phase 06: VI Safety Card Generator (Week 7-8) — ✅ Done
-- Generation pipeline for MOIT-compliant SDS PDFs.
-- react-pdf template (MOIT Appendix I layout).
-- PDF renderer and download API.
-- Public mobile views and QR codes.
-- Public card view with real extraction data.
+## Phase 06: VI Safety Card Generator (Week 7-8) — ✅ Done (2026-04-12)
+- Inngest pipeline for MOIT-compliant SDS PDF generation.
+- @react-pdf/renderer template (MOIT Appendix I layout).
+- MOIT terminology translator using Circular 01/2026/TT-BCT glossary.
+- QR code generation with 128-bit unguessable public tokens.
+- PDF upload to Vercel Blob with public URL storage.
+- Public mobile-friendly card view at `/card/[token]`.
+- PDF download API at `/api/safety-cards/[id]/pdf`.
 
 ## Phase 07: Compliance Chat (Week 9) — ✅ Done
 - Index-driven search over wiki pages (no embeddings, no pgvector).
@@ -58,10 +60,34 @@ The MVP rollout for the MSDS Platform is complete. All 9 implementation phases d
 - Audit log viewer for compliance tracking.
 - Single-user-per-org model (no team membership).
 
-## Phase 09: Landing + Legal + Launch (Week 11-12) — ✅ Done
+## Phase 09: Landing + Legal + Launch (Week 11-12) — ✅ Done (2026-04-12)
 - Marketing landing page with feature highlights.
 - Pricing page with plan tiers.
 - Legal pages (terms of service, privacy policy, DPA).
-- Waitlist signup integration.
-- Public mobile-friendly card view.
-- Ready for Asia Shine conversion.
+- Waitlist signup integration via `/api/waitlist`.
+- Public mobile-friendly card view with QR code scanning.
+- Build passing green, production-ready.
+- Ready for Asia Shine design partner conversion.
+
+---
+
+## Post-MVP Roadmap
+
+### Phase 10: Production Hardening (Week 13-14)
+- Error monitoring and alerting (Sentry integration).
+- Performance optimization (Core Web Vitals, bundle size).
+- Load testing and rate limit tuning.
+- Backup and disaster recovery procedures.
+- Security audit and penetration testing.
+
+### Phase 11: Team Features (Week 15-16)
+- Multi-user organizations (invite/remove members).
+- Role-based access control (admin, editor, viewer).
+- Activity feed and collaboration features.
+- Shared review queue for extraction validation.
+
+### Phase 12: Advanced Retrieval (Week 17-18)
+- Migrate from index-driven to hybrid BM25 + vector search if wiki exceeds 500 pages.
+- Implement Postgres `tsvector` for full-text search.
+- Optional: pgvector for semantic search with re-ranking.
+- Query performance optimization and caching.

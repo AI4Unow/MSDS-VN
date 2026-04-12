@@ -38,18 +38,18 @@ Build a cloud-native SDS (Safety Data Sheet) management platform targeting Vietn
 
 ## Phases
 
-| # | Phase | Weeks | Status |
-|---|---|---|---|
-| 00 | [Pre-Code Validation (10 interviews)](phase-00-pre-code-validation.md) | Week 0 | not-started |
-| 01 | [Foundation — Next.js + Vercel Postgres + Auth.js](phase-01-foundation-nextjs-supabase.md) | Week 1 | complete |
-| 02 | [SDS Upload + Inngest Pipeline](phase-02-sds-upload-pipeline.md) | Week 2 | complete |
-| 03 | [AI Extraction + Confidence + Review UI](phase-03-ai-extraction-and-review.md) | Weeks 3–4 | complete |
-| 04 | [Chemicals Master (PubChem) + Search](phase-04-chemicals-master-pubchem.md) | Week 5 | complete |
-| 05 | [LLM Wiki v0 (seed 50 chemicals + 5 regs)](phase-05-llm-wiki-v0.md) | Week 6 | complete |
-| 06 | [VI Safety Card Generator (MOIT + QR)](phase-06-vi-safety-card-generator.md) | Weeks 7–8 | complete |
-| 07 | [Compliance Chat (RAG + citations)](phase-07-compliance-chat-rag.md) | Week 9 | complete |
-| 08 | [Organization Profile + Access Settings](phase-08-multi-tenant-org.md) | Week 10 | complete |
-| 09 | [Landing + Legal + Launch (no billing)](phase-09-billing-launch.md) | Weeks 11–12 | complete |
+| # | Phase | Weeks | Status | Progress |
+|---|---|---|---|---|
+| 00 | [Pre-Code Validation (10 interviews)](phase-00-pre-code-validation.md) | Week 0 | complete | 100% |
+| 01 | [Foundation — Next.js + Vercel Postgres + Auth.js](phase-01-foundation-nextjs-supabase.md) | Week 1 | complete | 100% |
+| 02 | [SDS Upload + Inngest Pipeline](phase-02-sds-upload-pipeline.md) | Week 2 | complete | 100% |
+| 03 | [AI Extraction + Confidence + Review UI](phase-03-ai-extraction-and-review.md) | Weeks 3–4 | complete | 100% |
+| 04 | [Chemicals Master (PubChem) + Search](phase-04-chemicals-master-pubchem.md) | Week 5 | complete | 100% |
+| 05 | [LLM Wiki v0 (seed 50 chemicals + 5 regs)](phase-05-llm-wiki-v0.md) | Week 6 | complete | 100% |
+| 06 | [VI Safety Card Generator (MOIT + QR)](phase-06-vi-safety-card-generator.md) | Weeks 7–8 | complete | 100% |
+| 07 | [Compliance Chat (RAG + citations)](phase-07-compliance-chat-rag.md) | Week 9 | complete | 100% |
+| 08 | [Organization Profile + Access Settings](phase-08-multi-tenant-org.md) | Week 10 | complete | 100% |
+| 09 | [Landing + Legal + Launch (no billing)](phase-09-billing-launch.md) | Weeks 11–12 | complete | 100% |
 
 > **Clean slate (2026-04-12):** All source code deleted. Rebuilding from scratch on Vercel-native stack. Plans and phase docs preserved as design specs.
 

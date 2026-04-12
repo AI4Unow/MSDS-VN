@@ -124,17 +124,20 @@ MSDS/
 ```
 
 ## Core Dependencies
-- **Framework**: next 16.2.3, react 19.2.4
-- **Database**: @vercel/postgres, drizzle-orm, drizzle-kit
-- **Auth**: next-auth, @auth/drizzle-adapter
-- **Storage**: @vercel/blob
-- **AI/LLM**: ai, @ai-sdk/google
-- **Background Jobs**: inngest
-- **UI**: tailwindcss v4, shadcn/ui, lucide-react
-- **PDF**: @react-pdf/renderer, react-pdf
-- **QR**: qrcode
-- **Validation**: zod
-- **Utilities**: nanoid, jose, react-dropzone
+- **Framework**: next 16.2.3, react 19.2.4, react-dom 19.2.4
+- **Database**: @vercel/postgres 0.10.0, drizzle-orm 0.45.2, drizzle-kit 0.31.10
+- **Auth**: next-auth 5.0.0-beta.30, @auth/drizzle-adapter 1.11.1
+- **Storage**: @vercel/blob 2.3.3
+- **AI/LLM**: ai 6.0.158, @ai-sdk/google 3.0.62, @ai-sdk/react 3.0.160
+- **Background Jobs**: inngest 4.2.1
+- **UI**: tailwindcss v4, shadcn 4.2.0, @phosphor-icons/react 2.1.7, lucide-react 1.8.0, next-themes 0.4.6
+- **PDF**: @react-pdf/renderer 4.4.1
+- **Email**: resend 6.10.0, @react-email/components 1.0.12
+- **QR**: qrcode 1.5.4
+- **Validation**: zod 4.3.6
+- **Utilities**: nanoid 5.1.7, jose 6.2.2, react-dropzone 15.0.0, clsx 2.1.1, tailwind-merge 3.5.0
+- **UI Components**: @base-ui/react 1.3.0, class-variance-authority 0.7.1, sonner 2.0.7, tw-animate-css 1.4.0
+- **Environment**: @t3-oss/env-nextjs 0.13.11
 
 ## Key Features Implemented
 
@@ -212,9 +215,19 @@ MSDS/
 - `POST /api/waitlist` — Waitlist signup
 
 ## Background Jobs (Inngest)
-- `extract-sds` — Gemini extraction + PubChem lookup
-- `enrich-chemical` — PubChem data enrichment
-- `generate-card` — Safety card PDF generation
+Jobs defined in `/src/lib/inngest/` (if exists) or inline in API routes:
+- `extract-sds` — Gemini extraction + PubChem lookup + confidence scoring
+- `enrich-chemical` — PubChem data enrichment for chemicals master table
+- `generate-card` — Safety card PDF generation with MOIT translation + QR code + Vercel Blob upload
+
+## Key Modules
+- `/src/lib/ai/` — Gemini client, extraction schema/prompts, confidence scoring, pricing
+- `/src/lib/auth/` — Auth.js config, session helpers, org requirement middleware
+- `/src/lib/chat/` — Model router, chat agent, wiki tools for compliance chat
+- `/src/lib/safety-card/` — MOIT translator, glossary, QR generator, PDF renderer
+- `/src/lib/chemicals/` — PubChem enrichment logic
+- `/src/lib/audit/` — Audit logging helper
+- `/src/lib/db/schema/` — Drizzle schema definitions (users, orgs, sds_documents, extractions, chemicals, safety_cards, wiki_pages, audit_logs)
 
 ## File Count
 - ~80 source files (components, pages, API routes, lib modules)

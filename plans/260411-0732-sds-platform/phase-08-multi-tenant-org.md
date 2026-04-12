@@ -3,7 +3,9 @@ phase: 08
 name: Organization Profile + Access Settings
 weeks: 10
 priority: P1
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 08 — Organization Profile + Access Settings

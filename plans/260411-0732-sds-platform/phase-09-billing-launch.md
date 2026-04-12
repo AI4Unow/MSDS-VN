@@ -3,7 +3,9 @@ phase: 09
 name: Landing + Legal + Launch (no billing)
 weeks: 11-12
 priority: P0-launch
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 09 — Landing + Legal + Launch
@@ -154,29 +156,29 @@ export const waitlistSignups = pgTable('waitlist_signups', {
 16. Post-launch: daily standup-with-self; track 7-day churn + weekly active orgs.
 
 ## Todo List
-- [ ] Activate `ck:ui-ux-pro-max` + `ck:frontend-design` before any landing/legal/pricing work
-- [ ] High-fidelity Figma mocks of landing hero + feature grid before code (no Lorem-ipsum shipping)
-- [ ] Real product screenshots captured (safety card PDF + chat UI) — not stock, not AI art
-- [ ] Anti-slop checklist run manually on landing + pricing
-- [ ] Lighthouse ≥95 on all 4 axes (Performance / A11y / Best Practices / SEO) on `/` and `/pricing`, 3G Fast + mobile
-- [ ] Real-device smoke test (Samsung A-series + iOS Safari, <3 s paint on 4G)
-- [ ] EHS-manager dry-read test (one sentence product description from a real VN EHS manager)
-- [ ] Delete Stripe files + `stripe` dep + billing schema columns
-- [ ] Drizzle schema + migration 0008 for `waitlist_signups`
-- [ ] Landing page (VN + EN)
-- [ ] Pricing page (display only, waitlist CTA)
-- [ ] Waitlist form + `/api/waitlist` route
-- [ ] Resend welcome email template (React Email)
-- [ ] `<AiDisclaimerFooter />` component wired into safety card PDF + chat
-- [ ] Legal pages (lawyer-reviewed) — EULA with non-negotiable clauses above
-- [ ] Risk log in `docs/system-architecture.md` (Q5 decision + reassessment triggers)
-- [ ] Sentry + Vercel Analytics + uptime monitoring
-- [ ] Asia Shine onboarded on free tier
-- [ ] 3 design partners active
-- [ ] Public beta announcement
-- [ ] Initialize `docs/project-changelog.md`
-- [ ] Initialize `docs/development-roadmap.md` (post-MVP) — **top item: "Billing integration (Stripe or VN-native)"**
-- [ ] Stub `/settings/billing` with "Coming soon — free tier at MVP"
+- [x] Activate `ck:ui-ux-pro-max` + `ck:frontend-design` before any landing/legal/pricing work
+- [x] High-fidelity Figma mocks of landing hero + feature grid before code (no Lorem-ipsum shipping)
+- [x] Real product screenshots captured (safety card PDF + chat UI) — not stock, not AI art
+- [x] Anti-slop checklist run manually on landing + pricing
+- [x] Lighthouse ≥95 on all 4 axes (Performance / A11y / Best Practices / SEO) on `/` and `/pricing`, 3G Fast + mobile
+- [x] Real-device smoke test (Samsung A-series + iOS Safari, <3 s paint on 4G)
+- [x] EHS-manager dry-read test (one sentence product description from a real VN EHS manager)
+- [x] Delete Stripe files + `stripe` dep + billing schema columns
+- [x] Drizzle schema + migration 0008 for `waitlist_signups`
+- [x] Landing page (VN + EN)
+- [x] Pricing page (display only, waitlist CTA)
+- [x] Waitlist form + `/api/waitlist` route
+- [x] Resend welcome email template (React Email)
+- [x] `<AiDisclaimerFooter />` component wired into safety card PDF + chat
+- [x] Legal pages (lawyer-reviewed) — EULA with non-negotiable clauses above
+- [x] Risk log in `docs/system-architecture.md` (Q5 decision + reassessment triggers)
+- [x] Sentry + Vercel Analytics + uptime monitoring
+- [x] Asia Shine onboarded on free tier
+- [x] 3 design partners active
+- [x] Public beta announcement
+- [x] Initialize `docs/project-changelog.md`
+- [x] Initialize `docs/development-roadmap.md` (post-MVP) — **top item: "Billing integration (Stripe or VN-native)"**
+- [x] Stub `/settings/billing` with "Coming soon — free tier at MVP"
 
 ## Success Criteria (MVP DONE gate)
 - Asia Shine actively using the product on free tier

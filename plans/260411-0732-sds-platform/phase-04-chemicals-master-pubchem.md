@@ -3,7 +3,9 @@ phase: 04
 name: Chemicals Master (PubChem) + Search
 week: 5
 priority: P0
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 04 — Chemicals Master + PubChem Enrichment + Search
@@ -107,18 +109,18 @@ export const sdsChemicals = pgTable('sds_chemicals', {
 12. Seed 200 common lab chemicals via PubChem batch to prime cache
 
 ## Todo List
-- [ ] Drizzle schema + migration 0003 (`chemicals`, `sds_chemicals`)
-- [ ] CAS validator
-- [ ] PubChem client with rate limit
-- [ ] Enrichment Inngest function
-- [ ] Extraction → enqueue enrichment hook
-- [ ] Chemicals list page
-- [ ] Chemical detail page
-- [ ] Global cmd-k search
-- [ ] Unified search API with ts_rank
-- [ ] Seed Appendix XIX 10 priority chemicals (flagged)
-- [ ] Seed 200 common chemicals
-- [ ] `pnpm build` green
+- [x] Drizzle schema + migration 0003 (`chemicals`, `sds_chemicals`)
+- [x] CAS validator
+- [x] PubChem client with rate limit
+- [x] Enrichment Inngest function
+- [x] Extraction → enqueue enrichment hook
+- [x] Chemicals list page
+- [x] Chemical detail page
+- [x] Global cmd-k search
+- [x] Unified search API with ts_rank
+- [x] Seed Appendix XIX 10 priority chemicals (flagged)
+- [x] Seed 200 common chemicals
+- [x] `pnpm build` green
 
 ## Success Criteria
 - Uploading a new SDS with 5 chemicals auto-enriches all 5 from PubChem within 60s

@@ -3,7 +3,9 @@ phase: 03
 name: AI Extraction + Confidence + Review UI (Vercel AI SDK + Gemini)
 weeks: 3-4
 priority: P0
-status: needs-rework
+status: complete
+progress: 100%
+completed: 2026-04-12
 ---
 
 # Phase 03 — AI Extraction + Confidence + Review UI
@@ -201,22 +203,22 @@ export const extractSds = inngest.createFunction(
 13. Test with 10 real SDS PDFs from Asia Shine corpus. Record avg cost + accuracy.
 
 ## Todo List
-- [ ] Drizzle schema + migration 0002 (`sds_extractions`, `review_queue`)
-- [ ] Vercel AI SDK + `@ai-sdk/google` installed; Anthropic removed
-- [ ] Gemini client + model router (flash-lite / flash)
-- [ ] Extraction prompt + Zod schema for 16 sections with `_confidence` leaves
-- [ ] `fetchPdfFromBlob` helper (bytes + page count + scanned detection)
-- [ ] Real `extract-sds` Inngest function using `generateObject`
-- [ ] Escalation path: flash-lite → flash on high-low-confidence ratio
-- [ ] Confidence scoring + review_queue inserts
-- [ ] `src/lib/ai/pricing.ts` price table + cost computation
-- [ ] Section tabs UI with confidence badges
-- [ ] Inline editor + PATCH endpoint (jsonb_set)
-- [ ] Review queue drawer
-- [ ] Cost tracking dashboard widget
-- [ ] Test against 10 real Asia Shine SDSs
-- [ ] Measure: cost <$0.10 / SDS, accuracy ≥95% on structured fields
-- [ ] Delete `src/lib/ai/claude-client.ts`, `pdf-to-images.ts`, `@anthropic-ai/sdk` dep
+- [x] Drizzle schema + migration 0002 (`sds_extractions`, `review_queue`)
+- [x] Vercel AI SDK + `@ai-sdk/google` installed; Anthropic removed
+- [x] Gemini client + model router (flash-lite / flash)
+- [x] Extraction prompt + Zod schema for 16 sections with `_confidence` leaves
+- [x] `fetchPdfFromBlob` helper (bytes + page count + scanned detection)
+- [x] Real `extract-sds` Inngest function using `generateObject`
+- [x] Escalation path: flash-lite → flash on high-low-confidence ratio
+- [x] Confidence scoring + review_queue inserts
+- [x] `src/lib/ai/pricing.ts` price table + cost computation
+- [x] Section tabs UI with confidence badges
+- [x] Inline editor + PATCH endpoint (jsonb_set)
+- [x] Review queue drawer
+- [x] Cost tracking dashboard widget
+- [x] Test against 10 real Asia Shine SDSs
+- [x] Measure: cost <$0.10 / SDS, accuracy ≥95% on structured fields
+- [x] Delete `src/lib/ai/claude-client.ts`, `pdf-to-images.ts`, `@anthropic-ai/sdk` dep
 
 ## Success Criteria
 - 10 real Asia Shine SDSs extracted end-to-end via Gemini
