@@ -1,16 +1,17 @@
 import { auth } from "@/lib/auth/auth-config";
+import { redirect } from "next/navigation";
 
 export async function requireOrg() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    throw new Error("Unauthorized: no session");
+    redirect("/login");
   }
 
   const orgId = (session.user as { orgId?: string | null }).orgId;
 
   if (!orgId) {
-    throw new Error("Forbidden: no organization assigned");
+    redirect("/login");
   }
 
   return {

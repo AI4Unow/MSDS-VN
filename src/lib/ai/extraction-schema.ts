@@ -184,7 +184,7 @@ export const SECTION_NAMES: Record<string, string> = {
   section_10: "10. Ổn định và phản ứng",
   section_11: "11. Độc tính học",
   section_12: "12. Sinh thái",
-  section_13: "13. Xử lý废弃物",
+  section_13: "13. Xử lý thải bỏ",
   section_14: "14. Vận chuyển",
   section_15: "15. Quy định",
   section_16: "16. Thông tin khác",

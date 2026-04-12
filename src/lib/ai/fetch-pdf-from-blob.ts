@@ -2,6 +2,9 @@ import { db } from "@/lib/db/client";
 import { sdsDocuments } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+// Max PDF size: 50 MB — reject oversized files
+const MAX_PDF_BYTES = 50 * 1024 * 1024;
+
 export async function fetchPdfFromBlob(sdsId: string) {
   const [doc] = await db
     .select({ blobUrl: sdsDocuments.blobUrl, filename: sdsDocuments.filename })
@@ -14,7 +17,19 @@ export async function fetchPdfFromBlob(sdsId: string) {
   const response = await fetch(doc.blobUrl);
   if (!response.ok) throw new Error(`Failed to fetch blob: ${response.status}`);
 
+  // M2: Enforce size limit before loading into memory
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && parseInt(contentLength) > MAX_PDF_BYTES) {
+    throw new Error(`PDF too large (${contentLength} bytes, max ${MAX_PDF_BYTES})`);
+  }
+
   const arrayBuf = await response.arrayBuffer();
+
+  // Double-check actual size after download
+  if (arrayBuf.byteLength > MAX_PDF_BYTES) {
+    throw new Error(`PDF too large (${arrayBuf.byteLength} bytes, max ${MAX_PDF_BYTES})`);
+  }
+
   const pdfBytes = new Uint8Array(arrayBuf);
 
   // Estimate page count from PDF structure (lightweight heuristic)

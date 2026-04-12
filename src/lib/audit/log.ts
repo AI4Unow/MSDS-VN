@@ -13,8 +13,11 @@ export async function logAudit(params: {
   const forwarded = hdrs.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() ?? hdrs.get("x-real-ip") ?? null;
 
+  // Skip logging if no org context (unauthenticated request)
+  if (!orgId) return;
+
   await db.insert(auditLog).values({
-    userId,
+    userId: userId ?? undefined,
     orgId,
     action: params.action,
     targetType: params.targetType ?? null,

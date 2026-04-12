@@ -4,6 +4,10 @@ import { db } from "@/lib/db/client";
 import { wikiPages } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+// Validate slug format: lowercase alphanumeric, hyphens, forward slashes
+const SLUG_RE = /^[a-z0-9][a-z0-9/-]*[a-z0-9]$/;
+const VALID_CATEGORIES = ["regulation", "chemical", "guide", "meta", "hazards", "topics", "templates", "countries"] as const;
+
 export const wikiTools = {
   read_wiki_index: tool({
     description:
@@ -23,6 +27,10 @@ export const wikiTools = {
       "Read the full content of a wiki page by slug. Use after choosing relevant pages from the index.",
     inputSchema: z.object({ slug: z.string().describe("Wiki page slug") }),
     execute: async ({ slug }) => {
+      // Validate slug format to prevent injection
+      if (!SLUG_RE.test(slug) || slug.length > 200) {
+        return { error: "Invalid page slug format." };
+      }
       const page = await db
         .select()
         .from(wikiPages)
@@ -45,6 +53,9 @@ export const wikiTools = {
         .describe("Category: regulation, chemical, guide, meta"),
     }),
     execute: async ({ category }) => {
+      if (!VALID_CATEGORIES.includes(category as typeof VALID_CATEGORIES[number])) {
+        return { pages: [], error: `Unknown category: ${category}` };
+      }
       const pages = await db
         .select({ slug: wikiPages.slug, title: wikiPages.title })
         .from(wikiPages)

@@ -2,7 +2,7 @@ import { requireOrg } from "@/lib/auth/require-org";
 import { db } from "@/lib/db/client";
 import { sdsDocuments } from "@/lib/db/schema/sds-documents";
 import { safetyCards } from "@/lib/db/schema/safety-cards";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { FileText, QrCode, Download } from "@phosphor-icons/react/dist/ssr";
 
@@ -28,7 +28,7 @@ export default async function SafetyCardPage({
     .select()
     .from(safetyCards)
     .where(eq(safetyCards.sdsId, id))
-    .orderBy(safetyCards.createdAt);
+    .orderBy(desc(safetyCards.createdAt));
 
   const latestCard = cards[0];
 
