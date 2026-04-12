@@ -3,17 +3,56 @@
 The MSDS Platform employs a modern, serverless architecture focusing on simplicity and edge-native performance.
 
 ## Core Stack
-- **Framework**: Next.js 16 (App Router) + React 19
+- **Framework**: Next.js 16 (App Router, proxy.ts not middleware.ts) + React 19
 - **Language**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS v4 + shadcn/ui components
 - **Database**: Vercel Postgres (`@vercel/postgres` + `drizzle-orm`)
 - **Authentication**: Auth.js v5 (`next-auth` + `@auth/drizzle-adapter`) — magic link + Google OAuth
 - **Storage**: Vercel Blob (`@vercel/blob`) for raw PDF storage and generated VI Safety Cards
 - **Background Jobs**: Inngest for async tasks (e.g., SDS extraction, chemical enrichment, safety card generation)
-- **AI/LLM**: Vercel AI SDK (`ai` + `@ai-sdk/google`) with Google Gemini (gemini-3-flash-preview / gemini-3.1-flash-lite-preview)
+- **AI/LLM**: Vercel AI SDK v6 (`ai` + `@ai-sdk/google`) with Google Gemini (gemini-3-flash-preview / gemini-3.1-flash-lite-preview)
 - **Hosting**: Vercel (full-stack)
 
 > **Retrieval architecture (MVP):** The compliance chat and wiki use **index-driven retrieval** per the [Karpathy LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — NO vector embeddings, NO pgvector. At MVP scale (~100–500 pages), a curated `index.md` catalog + LLM reading the index to pick relevant pages is sufficient. **Upgrade path:** If wiki grows past ~500 pages, migrate to Postgres `tsvector` BM25 or hybrid BM25 + vector + re-rank.
+
+## Vercel AI SDK v6 Patterns
+
+The compliance chat uses Vercel AI SDK v6 with the following patterns:
+
+### Client-Side (useChat Hook)
+```typescript
+const { messages, input, handleInputChange, handleSubmit } = useChat({
+  api: '/api/chat',
+  onFinish: (message) => { /* handle completion */ }
+});
+```
+
+### Server-Side (streamText)
+```typescript
+import { streamText, convertToModelMessages } from 'ai';
+import { google } from '@ai-sdk/google';
+
+const result = streamText({
+  model: google('gemini-3-flash-preview'),
+  messages: convertToModelMessages(messages), // UI messages → ModelMessage[]
+  tools: {
+    searchWiki: {
+      description: 'Search wiki pages',
+      inputSchema: z.object({ query: z.string() }), // Use inputSchema, not parameters
+      execute: async ({ query }) => { /* ... */ }
+    }
+  }
+});
+
+return toUIMessageStreamResponse(result); // Stream to client
+```
+
+### Key Differences from v5
+- `convertToModelMessages()` transforms UI message format to `ModelMessage[]`
+- `inputSchema` (Zod) replaces deprecated `parameters`
+- `toUIMessageStreamResponse()` handles streaming response format
+- `streamText` replaces `generateText` for streaming responses
+- No `handleSubmit` callback; use `onFinish` in useChat hook
 
 ## Request Flows
 
@@ -29,10 +68,20 @@ The MSDS Platform employs a modern, serverless architecture focusing on simplici
 - Gemini translates/localizes data using MOIT terminology (Circular 01/2026/TT-BCT).
 - Document rendered as a PDF with a public QR code pointing to a mobile-friendly view.
 
-### 3. Compliance Chat (Index-Driven Retrieval)
-- Built on the LLM Wiki concept using index-driven retrieval.
-- Query flow: Gemini reads `index.md` → picks relevant wiki page slugs → reads full page content via tool-use → answers with inline citations.
+### 3. Compliance Chat (Vercel AI SDK v6 + Index-Driven Retrieval)
+- Built on Vercel AI SDK v6 with `useChat` hook on client, `streamText` on server.
+- Server-side chat handler uses `convertToModelMessages()` to transform UI messages to `ModelMessage[]`.
+- Gemini reads `index.md` → picks relevant wiki page slugs via tool-use → reads full page content → answers with inline citations.
+- Tools defined with `inputSchema` (Zod), not deprecated `parameters`.
+- Response streamed via `toUIMessageStreamResponse()` for real-time client updates.
+- Model routing: Gemini Flash for simple queries, Gemini Pro for complex multi-step reasoning.
 - No embeddings or vector search in MVP. Retrieval is entirely LLM-driven against the curated index.
+
+### 4. Authentication Flow (Auth.js v5)
+- Magic link or Google OAuth via Auth.js v5 + Drizzle adapter.
+- Session stored in Vercel Postgres via Drizzle.
+- Protected routes use `auth()` helper to check session.
+- Audit log entry created on login/logout.
 
 ## Risk Log
 

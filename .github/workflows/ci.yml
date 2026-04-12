@@ -1,23 +1,35 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [main, master]
   push:
+    branches: [main, master]
+  pull_request:
     branches: [main, master]
 
 jobs:
-  lint-and-typecheck:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm build
+
+      - name: Typecheck
+        run: pnpm tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+        env:
+          SKIP_ENV_VALIDATION: true

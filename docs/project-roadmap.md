@@ -1,8 +1,8 @@
 # Project Roadmap
 
-The MVP rollout for the MSDS Platform is scheduled for 90 days.
+The MVP rollout for the MSDS Platform is complete. All 9 implementation phases delivered and build passing green.
 
-> **Last updated:** 2026-04-11. Stack: Next.js 16 + React 19 + Supabase + Inngest + Claude API. Retrieval: index-driven (no embeddings).
+> **Last updated:** 2026-04-12. Stack: Next.js 16 + React 19 + Vercel Postgres + Auth.js v5 + Drizzle ORM + Vercel Blob + Vercel AI SDK v6 + Gemini + Inngest. Retrieval: index-driven (no embeddings).
 
 ## Phase 00: Pre-Code Validation (Week 0) — Not Started
 - End-user interviews with Vietnamese EHS managers, including design partner Asia Shine.
@@ -10,17 +10,20 @@ The MVP rollout for the MSDS Platform is scheduled for 90 days.
 
 ## Phase 01: Foundation (Week 1) — ✅ Done
 - Next.js 16 scaffolding (16.2.3 + React 19.2.4).
-- Supabase project configuration (Auth, Storage, RLS policies).
-- Basic application shell with shadcn/ui.
+- Vercel Postgres database with Drizzle ORM schema.
+- Auth.js v5 with magic link + Google OAuth via Drizzle adapter.
+- Basic application shell with shadcn/ui + Tailwind v4.
 - Audit logging table + helper.
 
 ## Phase 02: SDS Upload + Inngest Pipeline (Week 2) — ✅ Done
-- Upload interface for PDF documents.
+- Upload interface for PDF documents via Vercel Blob.
 - Inngest background job architecture with retry logic.
+- SDS document tracking and status management.
 
 ## Phase 03: AI Extraction & Review UI (Week 3-4) — ✅ Done
-- Claude Vision prompt logic for 16 GHS section structural extraction.
+- Gemini Flash extraction for 16 GHS section structural extraction.
 - Confidence scoring and human-in-the-loop review interface.
+- Field-level editing and extraction refinement.
 
 ## Phase 04: Chemicals Master + PubChem (Week 5) — ✅ Done
 - PubChem lookup integration.
@@ -43,18 +46,22 @@ The MVP rollout for the MSDS Platform is scheduled for 90 days.
 ## Phase 07: Compliance Chat (Week 9) — ✅ Done
 - Index-driven search over wiki pages (no embeddings, no pgvector).
 - LLM QA interface with citation support via tool-use.
+- Vercel AI SDK v6 with useChat hook + streamText + wiki tools.
 - Citation formatter and citation card UI.
 - Wiki page preview drawer.
-- Model router (Haiku for simple queries, Sonnet for complex).
+- Model router (Gemini Flash for simple queries, Gemini Pro for complex).
 - Dynamic pricing per model.
 
 ## Phase 08: Org Profile + Access Settings (Week 10) — ✅ Done
-- Organization profile, card access mode toggle.
+- Organization profile with name management.
+- Card access mode toggle (public token vs login required).
+- Audit log viewer for compliance tracking.
 - Single-user-per-org model (no team membership).
 
-## Phase 09: Billing + Landing + Launch (Week 11-12) — ✅ Done
-- Billing plans + entitlements + usage tracking.
-- Billing settings page with usage bars.
-- Marketing landing page + legal pages (terms, privacy, DPA).
-- Payment processor (Stripe/MoMo) deferred post-MVP.
+## Phase 09: Landing + Legal + Launch (Week 11-12) — ✅ Done
+- Marketing landing page with feature highlights.
+- Pricing page with plan tiers.
+- Legal pages (terms of service, privacy policy, DPA).
+- Waitlist signup integration.
+- Public mobile-friendly card view.
 - Ready for Asia Shine conversion.
