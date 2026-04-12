@@ -1,8 +1,9 @@
 # Codebase Summary
 
-## Current State: MVP Complete (2026-04-12)
+## Current State: MVP Complete & Decoupled (2026-04-12)
 
-All 9 implementation phases delivered. Build passing green. Production-ready MSDS platform with SDS extraction, safety card generation, compliance chat, and organization management.
+All 9 implementation phases delivered. Build passing green. Production-ready MSDS platform with SDS extraction, safety card generation, and compliance chat.
+Currently, the database is mocked via a Proxy (`src/lib/db/client.ts`) and Auth.js has been disabled to allow fully public access and friction-free demonstration environments.
 
 ## Project Structure
 ```
@@ -143,8 +144,8 @@ MSDS/
 
 ### Phase 01: Foundation
 - Next.js 16 + React 19 scaffolding
-- Vercel Postgres + Drizzle ORM schema
-- Auth.js v5 with magic link + Google OAuth
+- Vercel Postgres + Drizzle ORM schema (Currently replaced by a robust read-only mock proxy for public accessibility)
+- Auth.js v5 with magic link + Google OAuth (Removed/disabled in current MVP iteration to allow public testing)
 - Audit logging infrastructure
 
 ### Phase 02: SDS Upload Pipeline
@@ -195,15 +196,16 @@ MSDS/
 - Waitlist signup integration
 - Public card view with QR
 
-## Database Schema Highlights
-- `users` — Auth.js v5 user records
-- `organizations` — Single user per org
-- `sds_documents` — Upload tracking (pending/extracted/reviewed)
-- `extractions` — GHS section data (JSONB)
-- `chemicals` — Master chemical list with PubChem enrichment
-- `safety_cards` — Generated card metadata + public tokens
-- `wiki_pages` — Markdown regulatory content
-- `audit_logs` — Compliance audit trail
+## Database Schema Highlights & Mocking
+*Note: Due to the removal of the cloud DB dependency in current MVP configuration, real queries are disabled and intercepted via a Proxy in `src/lib/db/client.ts`, which returns hardcoded mock arrays.*
+- `users` — Auth.js v5 user records (Mocked)
+- `organizations` — Single user per org (Mocked)
+- `sds_documents` — Upload tracking (Mocked list of parsed documents)
+- `extractions` — GHS section data (Mocked)
+- `chemicals` — Master chemical list (Mocked)
+- `safety_cards` — Generated card metadata (Mocked)
+- `wiki_pages` — Markdown regulatory content (Mocked index representation)
+- `audit_logs` — Compliance audit trail (Mocked)
 
 ## API Routes
 - `POST /api/auth/[...nextauth]` — Auth.js v5 handler

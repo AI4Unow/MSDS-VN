@@ -6,8 +6,8 @@ The MSDS Platform employs a modern, serverless architecture focusing on simplici
 - **Framework**: Next.js 16.2.3 (App Router, proxy.ts not middleware.ts) + React 19.2.4
 - **Language**: TypeScript 5 (strict mode)
 - **Styling**: Tailwind CSS v4 + shadcn/ui components + @phosphor-icons/react
-- **Database**: Vercel Postgres (`@vercel/postgres` 0.10.0 + `drizzle-orm` 0.45.2)
-- **Authentication**: Auth.js v5 (`next-auth` 5.0.0-beta.30 + `@auth/drizzle-adapter`) — magic link + Google OAuth
+- **Database**: Vercel Postgres (`@vercel/postgres` 0.10.0 + `drizzle-orm` 0.45.2) — *Currently fully mocked via Proxy in `src/lib/db/client.ts` to allow local/public build without configuring cloud DB.*
+- **Authentication**: Auth.js v5 removed/disabled for MVP to allow all routes to be publicly accessible.
 - **Storage**: Vercel Blob (`@vercel/blob` 2.3.3) for raw PDF storage and generated VI Safety Cards
 - **Background Jobs**: Inngest 4.2.1 for async tasks (SDS extraction, chemical enrichment, safety card generation)
 - **AI/LLM**: Vercel AI SDK v6 (`ai` 6.0.158 + `@ai-sdk/google` 3.0.62) with Google Gemini (gemini-3-flash-preview / gemini-3.1-flash-lite-preview)
@@ -83,11 +83,11 @@ return toUIMessageStreamResponse(result); // Stream to client
 - Model routing: Gemini Flash for simple queries, Gemini Pro for complex multi-step reasoning.
 - No embeddings or vector search in MVP. Retrieval is entirely LLM-driven against the curated index.
 
-### 4. Authentication Flow (Auth.js v5)
-- Magic link or Google OAuth via Auth.js v5 + Drizzle adapter.
-- Session stored in Vercel Postgres via Drizzle.
-- Protected routes use `auth()` helper to check session.
-- Audit log entry created on login/logout.
+### 4. Authentication Flow (Removed for MVP)
+- Auth.js v5 was initially implemented but has been completely removed/bypassed for the MVP phase.
+- All routes (including `/sds`, `/dashboard`) are now completely public to allow immediate testing without login requirements.
+- The `requireOrg` middleware enforces dynamic rendering but bypasses auth and db checks.
+- Database checks return mock data via a `Proxy` client to prevent runtime crashes when `POSTGRES_URL` is omitted.
 
 ## Risk Log
 

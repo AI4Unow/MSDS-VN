@@ -8,11 +8,11 @@ Vietnamese SMBs handling 20–500 chemicals, specifically chemical distributors,
 
 ## Core Features (MVP)
 1. **SDS Vault**: Upload, versioning, full-text + semantic search.
-2. **AI Extraction**: OCR-free Claude vision extraction of 16 GHS sections into structured JSON.
-3. **VI Safety Card Generator**: MOIT-compliant PDF generator with mobile QR access.
-4. **Compliance Q&A Chat**: LLM grounded on an actively maintained LLM Wiki for regulatory knowledge.
+2. **AI Extraction**: OCR-free Gemini Flash extraction of 16 GHS sections into structured JSON.
+3. **VI Safety Card Generator**: MOIT-compliant PDF generator (aligned with Circular 01/2026/TT-BCT) with mobile QR access.
+4. **Compliance Q&A Chat**: LLM grounded on an actively maintained LLM Wiki for regulatory knowledge (updated for 2026 Law on Chemicals).
 5. **CAS Lookup**: PubChem integration for a basic chemical master list.
-6. **Multi-Tenant Org**: Scoped access with Supabase RLS.
+6. **Multi-Tenant Org (Deferred)**: Scoped access architecture exists but is disabled/mocked in the current MVP to allow frictionless public testing.
 
 ## MVP Success Criteria
 - 1 paying customer (Asia Shine) by Day 90.
