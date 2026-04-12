@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
  * preventing static generation build errors when DB connection is missing.
  */
 export async function requireOrg() {
-  cookies(); // Force dynamic rendering
+  await cookies(); // Force dynamic rendering
 
   return {
     userId: "dev-user",
