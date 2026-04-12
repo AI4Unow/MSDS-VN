@@ -1,8 +1,6 @@
-import { requireOrg } from "@/lib/auth/require-org";
 import { FileText, Flask, ChatCircle, Warning } from "@phosphor-icons/react/dist/ssr";
 
 export default async function DashboardPage() {
-  const { session } = await requireOrg();
 
   const stats = [
     { label: "Tài liệu SDS", labelEn: "SDS Documents", value: "0", icon: FileText },
@@ -16,7 +14,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Xin chào, {session.user.name ?? session.user.email?.split("@")[0]}
+          Xin chào, Dev User
         </h1>
         <p className="text-muted-foreground mt-1">
           Tổng quan hoạt động quản lý SDS

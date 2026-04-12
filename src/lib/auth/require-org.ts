@@ -1,22 +1,11 @@
-import { auth } from "@/lib/auth/auth-config";
-import { redirect } from "next/navigation";
-
+/**
+ * Auth guard — disabled for development.
+ * Returns mock org context instead of checking session.
+ */
 export async function requireOrg() {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const orgId = (session.user as { orgId?: string | null }).orgId;
-
-  if (!orgId) {
-    redirect("/login");
-  }
-
   return {
-    userId: session.user.id,
-    orgId,
-    session,
+    userId: "dev-user",
+    orgId: "dev-org",
+    session: null,
   };
 }

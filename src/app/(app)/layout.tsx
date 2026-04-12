@@ -1,5 +1,3 @@
-import { auth } from "@/lib/auth/auth-config";
-import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 
 export default async function AppLayout({
@@ -7,16 +5,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  // Auth disabled — pass mock user to AppShell
+  const mockUser = {
+    id: "dev-user",
+    name: "Dev User",
+    email: "dev@msds.local",
+    orgId: "dev-org",
+  };
 
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  const orgId = (session.user as { orgId?: string | null }).orgId;
-  if (!orgId) {
-    redirect("/login");
-  }
-
-  return <AppShell user={session.user}>{children}</AppShell>;
+  return <AppShell user={mockUser}>{children}</AppShell>;
 }

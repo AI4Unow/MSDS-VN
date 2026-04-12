@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth/auth-config";
 import { db } from "@/lib/db/client";
 import { sdsExtractions, reviewQueue } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -9,15 +8,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; path: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const orgId = (session.user as { orgId?: string | null }).orgId;
-  if (!orgId) {
-    return NextResponse.json({ error: "No organization" }, { status: 403 });
-  }
+  const orgId = "dev-org";
 
   const { id: extractionId, path: fieldPath } = await params;
   const body = await request.json();
@@ -59,7 +50,7 @@ export async function PATCH(
     .set({
       humanValue: value as Record<string, unknown>,
       status: "resolved",
-      resolvedBy: session.user.id,
+      resolvedBy: "dev-user",
       resolvedAt: new Date(),
     })
     .where(

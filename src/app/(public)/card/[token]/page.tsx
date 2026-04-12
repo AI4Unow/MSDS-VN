@@ -4,8 +4,7 @@ import { sdsDocuments } from "@/lib/db/schema/sds-documents";
 import { sdsExtractions } from "@/lib/db/schema/sds-extractions";
 import { organizations } from "@/lib/db/schema/organizations";
 import { eq } from "drizzle-orm";
-import { notFound, redirect } from "next/navigation";
-import { auth } from "@/lib/auth/auth-config";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -37,14 +36,6 @@ export default async function PublicCardPage({
     .from(organizations)
     .where(eq(organizations.id, card[0].orgId))
     .limit(1);
-
-  // Enforce card access mode
-  if (org[0]?.cardAccessMode === "login_required") {
-    const session = await auth();
-    if (!session?.user) {
-      redirect(`/login?next=/card/${token}`);
-    }
-  }
 
   // Fetch related SDS and extraction
   const sds = await db

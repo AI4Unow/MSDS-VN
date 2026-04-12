@@ -1,10 +1,7 @@
-import { requireOrg } from "@/lib/auth/require-org";
 import Link from "next/link";
 import { Gear, Buildings, ClipboardText } from "@phosphor-icons/react/dist/ssr";
 
 export default async function SettingsPage() {
-  const { session } = await requireOrg();
-
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold">Cài đặt</h1>
@@ -15,11 +12,11 @@ export default async function SettingsPage() {
         <div className="rounded-lg border border-border bg-card p-4 space-y-2">
           <p className="text-sm">
             <span className="text-muted-foreground">Tên:</span>{" "}
-            {session.user.name ?? "—"}
+            Dev User
           </p>
           <p className="text-sm">
             <span className="text-muted-foreground">Email:</span>{" "}
-            {session.user.email ?? "—"}
+            dev@msds.local
           </p>
         </div>
       </section>
