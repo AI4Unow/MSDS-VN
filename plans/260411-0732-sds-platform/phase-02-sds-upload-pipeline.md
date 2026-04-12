@@ -1,38 +1,45 @@
 ---
 phase: 02
-name: SDS Upload + Inngest Pipeline
+name: SDS Upload + Inngest Pipeline (Vercel Blob)
 week: 2
 priority: P0
-status: not-started
+status: needs-rework
 ---
 
 # Phase 02 — SDS Upload + Inngest Pipeline
 
 ## Context
 - Brainstorm §5 "Request flow — SDS upload"
-- Depends on: Phase 01 (auth/RLS/storage)
+- Depends on: Phase 01 (Auth.js + Drizzle + Vercel Blob wiring, `docs/design-guidelines.md`)
+- **Breaking change (2026-04-12):** Supabase Storage removed. All file IO goes through Vercel Blob.
+
+## Frontend Build Protocol
+Before any UI work: activate `ck:ui-ux-pro-max` + `ck:frontend-design`, read `docs/design-guidelines.md`, obey `plan.md § Frontend Design Standard` (design dials locked at variance 3 / motion 2 / density 6). **Specific for this phase:** upload dropzone must feel substantial (oversized target, clear Vietnamese hint text, dashed border in safety-amber, never a thin dotted rectangle); SDS list table is dense — use spacing+dividers, not bordered cards; run anti-slop checklist before marking UI tasks done.
 
 ## Overview
-Users upload SDS PDFs → stored in Supabase Storage → `sds_documents` row inserted → Inngest job enqueued. Extraction itself lives in Phase 03; this phase builds the transport.
+Users upload SDS PDFs → stored in Vercel Blob → `sds_documents` row inserted via Drizzle → Inngest job enqueued. Extraction itself lives in Phase 03; this phase builds the transport.
 
 ## Requirements
 - Drag-drop upload UI (single + batch) with progress
-- Supabase Storage bucket `sds-files` (org-scoped paths)
-- `sds_documents` table with status state machine
+- Vercel Blob private upload (server-action issued token, org-scoped path)
+- `sds_documents` table with status state machine (Drizzle schema)
 - Inngest app wired + first event dispatched
-- SDS list view (table with filter + sort)
-- SDS detail page stub (just metadata + file preview)
+- SDS list view (table with filter + sort) — RSC with server action filter
+- SDS detail page stub (metadata + PDF preview via Blob URL)
 
 ## Related Files
+
 **Create:**
-- `supabase/migrations/0002_sds_documents.sql`
-- `src/app/(app)/sds/page.tsx` — list view
+- `src/lib/db/schema/sds-documents.ts` — Drizzle schema + `sdsStatus` pgEnum
+- `drizzle/migrations/0001_sds_documents.sql` — generated
+- `src/app/(app)/sds/page.tsx` — list view (RSC)
 - `src/app/(app)/sds/[id]/page.tsx` — detail stub
 - `src/app/(app)/sds/upload/page.tsx` — upload UI
 - `src/components/sds/upload-dropzone.tsx`
 - `src/components/sds/sds-table.tsx`
 - `src/components/sds/sds-status-badge.tsx`
-- `src/lib/storage/upload-sds.ts` — client-side signed upload
+- `src/lib/blob/upload-sds.ts` — server action wrapping `@vercel/blob` `put()`
+- `src/lib/sds/create-sds-record.ts` — server action: hash dedupe → Drizzle insert → Inngest event
 - `src/app/api/inngest/route.ts` — Inngest handler
 - `src/inngest/client.ts`
 - `src/inngest/functions/extract-sds.ts` — stub function (real logic in Phase 03)
@@ -40,83 +47,114 @@ Users upload SDS PDFs → stored in Supabase Storage → `sds_documents` row ins
 **Modify:**
 - `src/components/app-shell/sidebar.tsx` — activate SDS nav
 
-## Data Model (migration 0002)
-```sql
-create type sds_status as enum (
-  'pending', 'extracting', 'needs_review', 'ready', 'failed'
-);
+**Delete (Supabase baseline):**
+- Any `src/lib/storage/*` that used Supabase Storage signed URLs
 
-create table sds_documents (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
-  uploaded_by uuid references auth.users(id),
-  file_url text not null,
-  file_hash text not null,              -- sha256 for dedupe
-  filename text not null,
-  supplier text,
-  revision_date date,
-  source_lang text default 'en',
-  version int default 1,
-  status sds_status default 'pending',
-  error_message text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+## Data Model (Drizzle — `src/lib/db/schema/sds-documents.ts`)
+```ts
+export const sdsStatus = pgEnum('sds_status', [
+  'pending', 'extracting', 'needs_review', 'ready', 'failed',
+]);
 
-create index on sds_documents(org_id, status);
-create unique index on sds_documents(org_id, file_hash);
-
-alter table sds_documents enable row level security;
-create policy "org members" on sds_documents
-  using (org_id = (select org_id from users where supabase_auth_id = auth.uid()));
+export const sdsDocuments = pgTable('sds_documents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  uploadedBy: text('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+  blobUrl: text('blob_url').notNull(),          // @vercel/blob URL
+  blobPathname: text('blob_pathname').notNull(),// internal path: {orgId}/sds/{id}/{filename}
+  fileHash: text('file_hash').notNull(),        // sha256 for dedupe
+  filename: text('filename').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  supplier: text('supplier'),
+  revisionDate: date('revision_date'),
+  sourceLang: text('source_lang').default('en').notNull(),
+  version: integer('version').default(1).notNull(),
+  status: sdsStatus('status').default('pending').notNull(),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+  orgStatusIdx: index().on(t.orgId, t.status),
+  orgHashUniq: uniqueIndex().on(t.orgId, t.fileHash),
+}));
 ```
 
+All reads go through `requireOrg()` + `.where(eq(sdsDocuments.orgId, orgId))`. No RLS.
+
+## Upload Flow (Vercel Blob — client-direct pattern)
+
+Vercel Blob supports two patterns: (a) client-direct upload via token handler and (b) server-streamed put. For files up to 25MB we use pattern (a) — keeps Vercel function bodies small.
+
+```
+Client                         Server action                    Vercel Blob
+  │                                  │                               │
+  │─ compute sha256 ────────────────▶│                               │
+  │                                  │── dedupe check (Drizzle) ────│
+  │◀─ { allowed: true, clientToken } ┤                               │
+  │                                                                  │
+  │── upload(blob, clientToken) ────────────────────────────────────▶│
+  │◀─────────────────── { url, pathname } ───────────────────────────┤
+  │                                                                  │
+  │─ finalize(url, pathname, hash) ▶│                               │
+  │                                  │── INSERT sds_documents ───────│
+  │                                  │── inngest.send('sds.uploaded')│
+  │◀─ { sdsId } ─────────────────────┤                               │
+```
+
+- Token handler: `src/app/api/blob/upload/route.ts` exports `POST` using `handleUpload` from `@vercel/blob/client`. Inside `onBeforeGenerateToken` it calls `requireOrg()`, validates MIME + size, returns token scoped to `{orgId}/sds/*`.
+- Client uses `@vercel/blob/client` `upload()` helper.
+
 ## Implementation Steps
-1. Write + apply migration 0002
-2. Create Storage bucket `sds-files`, path pattern `{org_id}/{sds_id}/{filename}`, RLS policies for bucket (org members only)
-3. Install Inngest: `pnpm add inngest`, add `src/inngest/client.ts`, mount `/api/inngest`
-   - Configure retry logic: exponential backoff, max 3 retries per function (red team rec #13)
-   - Configure dead-letter / failed-job alerting (log to Sentry or console at minimum)
-4. Build upload dropzone component (shadcn + react-dropzone)
-5. Upload flow:
-   - Compute sha256 client-side → dedupe check
-   - Get signed upload URL from server action
-   - Upload directly to Storage
-   - Server action inserts `sds_documents` row with status=`pending`
-   - Send Inngest event `sds.uploaded` with `sds_id`
-6. Implement `extract-sds` Inngest function as a stub: set status → `extracting` → 2s sleep → `ready` (real logic in Phase 03)
-7. Build SDS list view with status filter, pagination, Supabase realtime subscription for status updates
-8. Build detail stub: PDF preview (iframe), metadata panel
-9. Configure Inngest dev server for local testing
-10. Register Inngest production endpoint + set `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` in Vercel
+1. Write Drizzle schema in `src/lib/db/schema/sds-documents.ts`; export from `schema/index.ts`.
+2. `pnpm dlx drizzle-kit generate` → `drizzle/migrations/0001_sds_documents.sql`. Apply with `drizzle-kit migrate`.
+3. Install Inngest: `pnpm add inngest`. Add `src/inngest/client.ts`. Mount `/api/inngest`.
+   - Retry logic: `retries: 3` on the function config (exponential backoff is Inngest default).
+   - Dead-letter: log to console + optional Sentry capture on final failure.
+4. Build `src/app/api/blob/upload/route.ts` using `handleUpload` from `@vercel/blob/client`:
+   - `onBeforeGenerateToken`: `requireOrg()`, validate content-type === `application/pdf`, max size 25MB, stash `{orgId, expectedHash}` in `tokenPayload`.
+   - `onUploadCompleted`: idempotent finalizer (optional — client also calls explicit finalize).
+5. Build upload dropzone component (shadcn + react-dropzone) — computes sha256 via WebCrypto, calls `/api/blob/upload` token endpoint, then `upload()` to Blob, then server action `finalizeSdsUpload()`.
+6. Implement `finalizeSdsUpload({ url, pathname, hash, filename, sizeBytes })` server action:
+   - `requireOrg()`
+   - Check existing row with `(orgId, fileHash)` → if dup, delete the newly uploaded blob via `del()` and return existing id
+   - Insert `sds_documents` row with `status = 'pending'`
+   - `inngest.send({ name: 'sds.uploaded', data: { sdsId, orgId } })`
+   - `auditLog({ action: 'sds.upload', targetType: 'sds', targetId: sdsId })`
+7. Implement `extract-sds.ts` Inngest function as a stub: set status → `extracting` → `await step.sleep('simulate', '2s')` → `ready`. Real logic lands in Phase 03.
+8. Build SDS list view (RSC): query by `orgId`, render shadcn table with status filter + pagination. Use `revalidatePath('/sds')` on status change. (No Supabase realtime — poll via `router.refresh()` on a 5s interval, or use SSE from an `/api/sds/stream` route if needed.)
+9. Build detail stub: render `<iframe src={blobUrl}>` for PDF preview; metadata panel pulls from Drizzle.
+10. Configure Inngest dev server for local testing (`pnpm dlx inngest-cli@latest dev`).
+11. Register Inngest production endpoint; set `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` in Vercel.
 
 ## Todo List
-- [ ] Migration 0002 applied
-- [ ] Storage bucket + policies
-- [ ] Inngest client + handler route (with retry logic: exponential backoff, 3 retries)
+- [ ] Drizzle schema for `sds_documents` + migration 0001
+- [ ] `/api/blob/upload` token handler with `handleUpload`
+- [ ] Inngest client + `/api/inngest` handler (retries: 3)
 - [ ] Upload dropzone UI
-- [ ] sha256 dedupe
-- [ ] Signed URL upload flow
-- [ ] Stub extract-sds function (status transitions only)
-- [ ] SDS list view with realtime
-- [ ] SDS detail stub with PDF preview
+- [ ] sha256 client-side dedupe
+- [ ] `finalizeSdsUpload` server action (insert + dedupe + event)
+- [ ] Stub `extract-sds` Inngest function (status transitions)
+- [ ] SDS list view (RSC + polling)
+- [ ] SDS detail stub with Blob iframe preview
 - [ ] `pnpm build` green
 
 ## Success Criteria
-- User can upload a PDF from UI → appears in list within 5s → status transitions pending → extracting → ready
-- Uploading the same file twice (same hash) shows "duplicate" toast, no second row
-- User B in different org cannot see user A's uploads (RLS verified)
+- User can upload a PDF from UI → appears in list within 5s → status transitions pending → extracting → ready (stub)
+- Uploading the same file twice (same hash) shows "duplicate" toast, no second row, orphan blob deleted
+- User B in different org cannot see user A's uploads (server action filters on `session.user.orgId`)
 - Inngest dashboard shows successful function runs
+- Zero Supabase references remaining in `src/**`
 
 ## Risk Assessment
-- **Risk:** Large PDF uploads (50MB+) fail on Vercel. **Mitigation:** Direct-to-Storage signed URL upload (bypasses Vercel body limit).
-- **Risk:** Inngest cold start latency. **Mitigation:** Acceptable for async jobs; document expected 1–3s enqueue delay.
+- **Risk:** Vercel Blob URL leakage. **Mitigation:** For SDS originals, use `access: 'public'` URLs but scope pathname behind unguessable id segment; for sensitive orgs, switch to private tokens (Phase 08 toggle).
+- **Risk:** 25MB Vercel function body limit. **Mitigation:** Client-direct upload via `@vercel/blob/client` bypasses function body entirely.
+- **Risk:** Inngest cold start. **Mitigation:** Acceptable for async jobs; document expected 1–3s enqueue delay.
 
 ## Security Considerations
-- Signed upload URLs expire in 5 minutes
-- File hash dedupe before auth check rejected early (DoS protection)
-- PDF max size: 25MB enforced server-side
-- MIME sniff server-side: reject non-PDF
+- Token-generation endpoint always calls `requireOrg()` first.
+- MIME sniff server-side: reject non-PDF in `onBeforeGenerateToken`.
+- 25MB cap enforced both client-side and in `onBeforeGenerateToken`.
+- `auditLog` on every upload (action + orgId + blob pathname).
 
 ## Next Steps
-→ Phase 03: AI Extraction
+→ Phase 03: AI Extraction (Vercel AI SDK + Gemini)

@@ -1,99 +1,263 @@
 ---
 phase: 01
-name: Foundation — Next.js + Supabase + Auth
+name: Foundation — Next.js + Vercel Postgres + Auth.js
 week: 1
 priority: P0
-status: not-started
+status: needs-rework
 ---
 
-# Phase 01 — Foundation
+# Phase 01 — Foundation (Vercel-native stack)
 
 ## Context
 - Brainstorm §5 (Architecture)
-- Stack locked: Next.js 15 App Router + TS + Supabase + shadcn/ui + Tailwind + Vercel
+- Stack locked (2026-04-12): Next.js 16 App Router + React 19 + TS + Vercel Postgres (Drizzle ORM) + Auth.js v5 + Vercel Blob + shadcn/ui + Tailwind v4 + Vercel
+- **Breaking change from prior baseline:** Supabase (Auth/Postgres/Storage/RLS) fully removed. Replaced by Vercel-native services. All Supabase client code is deleted; migration 0001 → Drizzle schema.
 
 ## Overview
-Production-grade Next.js 15 monorepo with Supabase (Postgres + Auth + Storage + RLS + pgvector), deployed to Vercel. No business logic yet — just the walls and wiring.
+Production-grade Next.js 16 monorepo on Vercel-native services only: Vercel Postgres for DB (via Drizzle ORM), Auth.js v5 for magic-link + Google OAuth, Vercel Blob for file storage. App-level auth guards replace Supabase RLS. No business logic yet — just walls and wiring.
+
+> **Note (2026-04-12):** No pgvector. No Supabase. Wiki retrieval is index-driven per Karpathy pattern (Phase 05). Embeddings/vector DBs explicitly out-of-scope for MVP.
 
 ## Requirements
-- Next.js 15 App Router + TypeScript strict
-- Supabase project provisioned (free tier → Pro if needed for pgvector)
-- Auth flow: email magic link + Google OAuth
+- Next.js 16 App Router + React 19 + TypeScript strict
+- Vercel Postgres provisioned (Hobby tier → Pro if needed)
+- Drizzle ORM + Drizzle Kit for schema + migrations
+- Auth.js v5 with: Resend magic link provider + Google OAuth provider + Drizzle adapter
+- Vercel Blob for private file storage
 - Global shell UI: top nav, sidebar, user menu, theme toggle
-- CI: typecheck + lint on PR (GitHub Actions)
+- CI: typecheck + lint + `drizzle-kit check` on PR (GitHub Actions)
 - Deployed to Vercel with preview deployments
 
-## Key Decisions (from brainstorm Unresolved Questions)
-- **Data residency (UQ #1) — DEFERRED per red team review:** Default to **Supabase ap-southeast-1 (Singapore)**. Decision deferred until after Phase 00 interviews. If ≥30% of interviews flag VN-resident storage as a hard blocker, switch to VN-hosted Supabase before provisioning. Phase 00 interview Q4 explicitly probes this. Document in `docs/system-architecture.md` commit.
-- **Audit logging (red team rec #12):** Basic audit_log table + helper added to Phase 01 scope (moved from Phase 08). Security baseline, not a nice-to-have.
+## Key Decisions
+- **Data residency:** Vercel Postgres (Neon-backed) default region `sin1` (Singapore). Vercel Blob default region `sin1`. If ≥30% of Phase 00 interviews flag VN-resident storage as hard blocker, evaluate self-hosted Postgres on VN IaaS before Phase 02 ships. Document in `docs/system-architecture.md`.
+- **No RLS:** Postgres row-level security not used. All data access goes through server actions / route handlers that call `auth()` from Auth.js and filter by `session.user.orgId`. Helper: `src/lib/auth/require-org.ts` throws if unauthorized.
+- **Audit logging:** `audit_log` table + `auditLog()` helper added to Phase 01 scope. Security baseline, not a nice-to-have.
+- **Session strategy:** Database sessions (not JWT) via Drizzle adapter — required for server-side revocation, consistent with audit logging, and plays well with RSC.
+- **Drizzle vs Prisma:** Drizzle chosen — lighter runtime, better edge compat, native `@vercel/postgres` driver, SQL-first.
+
+## Dependencies
+```
+next@^16.2.3 react@^19.2.4 react-dom@^19.2.4
+drizzle-orm @vercel/postgres
+drizzle-kit (dev)
+next-auth@beta @auth/drizzle-adapter
+resend @react-email/components
+@vercel/blob
+@t3-oss/env-nextjs zod
+tailwindcss@v4 @tailwindcss/postcss
+# shadcn/ui via cli
+```
+
+## Environment Variables (`.env.example`)
+```
+# DB
+POSTGRES_URL=                  # from Vercel Postgres dashboard
+POSTGRES_URL_NON_POOLING=      # for drizzle-kit migrate (uses direct connection)
+
+# Auth
+AUTH_SECRET=                   # openssl rand -base64 32
+AUTH_URL=http://localhost:3000
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+AUTH_RESEND_KEY=               # Resend API key for magic link email
+AUTH_EMAIL_FROM=noreply@sds-platform.example
+
+# Blob
+BLOB_READ_WRITE_TOKEN=         # from Vercel Blob dashboard
+
+# AI
+GOOGLE_GENERATIVE_AI_API_KEY=  # Gemini API key used by @ai-sdk/google
+
+# Inngest
+INNGEST_EVENT_KEY=
+INNGEST_SIGNING_KEY=
+```
 
 ## Related Files
+
 **Create:**
 - `package.json`, `tsconfig.json`, `next.config.ts`, `tailwind.config.ts`, `.env.example`
+- `drizzle.config.ts` — points at `src/db/schema/*` + `POSTGRES_URL_NON_POOLING`
+- `src/env.ts` — typed env via `@t3-oss/env-nextjs`
 - `src/app/layout.tsx`, `src/app/page.tsx` (marketing shell)
 - `src/app/(app)/layout.tsx`, `src/app/(app)/dashboard/page.tsx`
-- `src/app/(auth)/login/page.tsx`, `src/app/(auth)/callback/route.ts`
-- `src/lib/supabase/client.ts` — browser client
-- `src/lib/supabase/server.ts` — server client with cookies
-- `src/lib/supabase/middleware.ts` — session refresh
-- `src/middleware.ts` — route protection
+- `src/app/(auth)/login/page.tsx`
+- `src/app/api/auth/[...nextauth]/route.ts` — Auth.js handlers
+- `src/lib/auth/auth.ts` — `export const { auth, handlers, signIn, signOut } = NextAuth({...})`
+- `src/lib/auth/require-org.ts` — `requireOrg()` helper (throws if no session; returns `{ userId, orgId }`)
+- `src/lib/auth/email-template.tsx` — React Email template for magic link
+- `src/lib/db/client.ts` — `export const db = drizzle(sql, { schema })`
+- `src/lib/db/schema/index.ts` — barrel file
+- `src/lib/db/schema/auth.ts` — Auth.js tables (users, accounts, sessions, verificationTokens)
+- `src/lib/db/schema/organizations.ts` — organizations
+- `src/lib/db/schema/audit-log.ts` — audit_log
+- `src/lib/blob/upload.ts` — signed Vercel Blob upload helper (org-scoped paths)
+- `src/middleware.ts` — route protection via Auth.js middleware
 - `src/components/ui/*` (shadcn init)
 - `src/components/app-shell/sidebar.tsx`, `top-nav.tsx`, `user-menu.tsx`
-- `supabase/migrations/0001_init.sql` — organizations, users, audit_log, RLS scaffolding
+- `drizzle/migrations/0000_init.sql` — generated by `drizzle-kit generate`
+- `scripts/db/seed-dev.ts` — dev-only seed helpers
 - `.github/workflows/ci.yml`
 - `docs/system-architecture.md` — starter doc
 - `docs/code-standards.md` — starter doc
 
+**Delete (prior Supabase baseline):**
+- `src/lib/supabase/client.ts`, `src/lib/supabase/server.ts`, `src/lib/supabase/middleware.ts`
+- `supabase/migrations/*` (replaced by `drizzle/migrations/*`)
+- `@supabase/ssr` + `@supabase/supabase-js` from `package.json`
+
+## Data Model (Drizzle schema — `src/lib/db/schema/*.ts`)
+
+### `auth.ts` — Auth.js v5 tables (per `@auth/drizzle-adapter` contract)
+```ts
+export const users = pgTable('users', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name'),
+  email: text('email').unique(),
+  emailVerified: timestamp('email_verified', { mode: 'date' }),
+  image: text('image'),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const accounts = pgTable('accounts', { /* Auth.js required */ });
+export const sessions = pgTable('sessions', { /* Auth.js required */ });
+export const verificationTokens = pgTable('verification_tokens', { /* Auth.js required */ });
+```
+
+### `organizations.ts`
+```ts
+export const organizations = pgTable('organizations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  locale: text('locale').default('vi').notNull(),
+  plan: text('plan').default('free').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+```
+
+### `audit-log.ts`
+```ts
+export const auditLog = pgTable('audit_log', {
+  id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  action: text('action').notNull(),
+  targetType: text('target_type'),
+  targetId: text('target_id'),
+  metadata: jsonb('metadata'),
+  ipAddress: text('ip_address'),
+  ts: timestamp('ts').defaultNow().notNull(),
+}, (t) => ({
+  orgTsIdx: index().on(t.orgId, t.ts),
+}));
+```
+
+### Org bootstrap
+On Auth.js `signIn` event (callback hook), run: if `user.orgId` is null → create a personal `organizations` row with `name = user.email` → update `users.orgId`. All app reads go through `requireOrg()`.
+
+## Auth Flow (Auth.js v5 + Resend + Google)
+
+```ts
+// src/lib/auth/auth.ts
+import NextAuth from 'next-auth';
+import Google from 'next-auth/providers/google';
+import Resend from 'next-auth/providers/resend';
+import { DrizzleAdapter } from '@auth/drizzle-adapter';
+import { db } from '@/lib/db/client';
+
+export const { auth, handlers, signIn, signOut } = NextAuth({
+  adapter: DrizzleAdapter(db),
+  session: { strategy: 'database' },
+  providers: [
+    Google,
+    Resend({
+      from: process.env.AUTH_EMAIL_FROM!,
+      sendVerificationRequest: async ({ identifier, url }) => {
+        // uses Resend SDK + React Email template
+      },
+    }),
+  ],
+  events: {
+    signIn: async ({ user, isNewUser }) => {
+      if (isNewUser) await bootstrapPersonalOrg(user);
+      await auditLog({ action: 'auth.signin', userId: user.id });
+    },
+  },
+  pages: { signIn: '/login' },
+});
+```
+
 ## Implementation Steps
-1. `pnpm create next-app@latest` → TS, App Router, Tailwind, ESLint, src dir, import alias `@/*`
-2. `pnpm dlx shadcn@latest init` + add base components (button, input, card, dialog, dropdown, form, toast, sidebar)
-3. Provision Supabase project in `ap-southeast-1`. Enable `pgvector`, `pg_trgm`, `unaccent` extensions.
-4. `pnpm add @supabase/ssr @supabase/supabase-js`
-5. Write migration `0001_init.sql`:
-   - `organizations` (id uuid, name text, locale text default 'vi', plan text default 'free', created_at)
-   - `users` (supabase_auth_id uuid pk, org_id fk, role text check in ('owner','admin','member','viewer'))
-   - `audit_log` (id bigserial, org_id fk, user_id fk, action text, target_type text, target_id text, metadata jsonb, ip_address inet, ts timestamptz) — red team rec: security baseline from day 1
-   - RLS enabled on all tables; policies: `org_id = auth.jwt()->>'org_id'` via a helper function
-   - Trigger: on `auth.users` insert → create personal `organizations` row + `users` row
-6. Implement Supabase clients (browser / server / middleware) per @supabase/ssr docs. Use docs-seeker if stale.
-7. Build `/login` page: email magic link + Google OAuth button
-8. Build `/auth/callback` route exchanging code for session
-9. Build `(app)` group with auth guard in layout; redirect to `/login` if no session
-10. Build app shell components (sidebar with nav: Dashboard / SDS / Chemicals / Chat / Wiki / Settings)
-11. Configure Vercel project; connect GitHub; set env vars; deploy
-12. GitHub Actions: typecheck + lint + `supabase db lint` on PR
-13. Write starter docs: system-architecture, code-standards
+1. `pnpm create next-app@latest` → TS, App Router, Tailwind v4, ESLint, src dir, import alias `@/*`.
+2. `pnpm dlx shadcn@latest init` + base components (button, input, card, dialog, dropdown, form, toast, sidebar).
+3. Provision **Vercel Postgres** (sin1). Copy `POSTGRES_URL` + `POSTGRES_URL_NON_POOLING`. Provision **Vercel Blob** store; copy `BLOB_READ_WRITE_TOKEN`.
+4. Install deps: `pnpm add drizzle-orm @vercel/postgres @vercel/blob next-auth@beta @auth/drizzle-adapter resend @react-email/components @t3-oss/env-nextjs zod` + dev: `drizzle-kit`.
+5. Set up `src/env.ts` with `@t3-oss/env-nextjs` for type-safe env vars. Validate in `next.config.ts`.
+6. Author `src/lib/db/schema/*.ts` (auth, organizations, audit-log).
+7. `pnpm dlx drizzle-kit generate` → outputs `drizzle/migrations/0000_init.sql`.
+8. `pnpm dlx drizzle-kit migrate` → applies to Vercel Postgres (uses `POSTGRES_URL_NON_POOLING`).
+9. Implement `src/lib/auth/auth.ts` with Auth.js v5 config above.
+10. Implement `/api/auth/[...nextauth]/route.ts` re-exporting Auth.js handlers.
+11. Implement `src/middleware.ts` using Auth.js `auth()` middleware helper to gate `/dashboard`, `/sds`, `/chemicals`, `/chat`, `/wiki`, `/settings`.
+12. Implement `requireOrg()` server helper returning `{ userId, orgId }`; all RSC/server actions in `(app)` group call it.
+13. Build `/login` page: email magic link form + Google OAuth button using `signIn('resend', ...)` / `signIn('google')`.
+14. Build `(app)` group layout with auth guard + `requireOrg()` call.
+15. Build app shell components (sidebar: Dashboard / SDS / Chemicals / Chat / Wiki / Settings).
+16. Implement `auditLog()` helper in `src/lib/audit/log.ts` (writes via Drizzle; captures IP from request headers).
+17. Implement `src/lib/blob/upload.ts`: server-action that returns `put()` result from `@vercel/blob` with `access: 'public'` (cards) or token-protected URL (SDS originals). Org-scoped path pattern: `{orgId}/{kind}/{id}/{filename}`.
+18. Configure Vercel project; connect GitHub; set env vars; deploy.
+19. GitHub Actions CI: `pnpm typecheck` + `pnpm lint` + `pnpm drizzle-kit check` on PR.
+20. Write starter docs: system-architecture (Vercel-native topology diagram), code-standards.
 
 ## Todo List
-- [ ] Scaffold Next.js 15 + shadcn
-- [ ] Create Supabase project (ap-southeast-1)
-- [ ] Enable pgvector + extensions
-- [ ] Write 0001_init.sql migration with RLS + audit_log table
-- [ ] Implement auditLog() helper (src/lib/audit/log.ts)
-- [ ] Implement Supabase SSR clients
-- [ ] Magic link + Google OAuth login
-- [ ] Auth guard middleware
-- [ ] App shell (sidebar, top nav, user menu)
+- [ ] Scaffold Next.js 16 + shadcn
+- [ ] Provision Vercel Postgres (sin1) + Vercel Blob
+- [ ] Install Drizzle + Auth.js v5 + adapter deps
+- [ ] Write Drizzle schema (auth, organizations, audit_log)
+- [ ] Generate + apply `0000_init.sql` migration
+- [ ] Implement Auth.js v5 config (Resend magic link + Google OAuth + Drizzle adapter)
+- [ ] Bootstrap personal org on first signIn
+- [ ] Implement `requireOrg()` helper
+- [ ] Implement `auditLog()` helper
+- [ ] Implement Vercel Blob upload helper
+- [ ] Auth middleware for `(app)` route group
+- [ ] `/login` page + `/api/auth/[...nextauth]` handler
+- [ ] **Activate `ck:ui-ux-pro-max` + `ck:frontend-design` skills before any UI work** (see `plan.md § Frontend Design Standard`)
+- [ ] **Seed `docs/design-guidelines.md`** with locked design dials + aesthetic direction from `plan.md § Frontend Design Standard`. Must include: `Be Vietnam Pro` + `Geist`/`Manrope` font install, graphite + safety-amber color ramp as CSS variables, Phosphor icons setup, dark-mode defaults, the forbidden-copy wordlist, and the anti-slop "AI Tells" checklist copied inline for quick reference during code review.
+- [ ] Install fonts via `next/font/google` (Be Vietnam Pro + Geist) — verify Vietnamese diacritics render in all weights at 14/16/18 px
+- [ ] Tailwind v4 config: map design tokens (colors, spacing, typography scale, radius, shadow) from `docs/design-guidelines.md` to CSS variables. No raw hex in components.
+- [ ] App shell (sidebar, top nav, user menu) — **built against the seeded design system, not shadcn defaults**. Run anti-slop checklist before calling it done.
+- [ ] Typed env via `@t3-oss/env-nextjs`
 - [ ] Deploy to Vercel with preview URLs
-- [ ] GitHub Actions CI
+- [ ] GitHub Actions CI (typecheck + lint + drizzle-kit check)
 - [ ] Starter docs in `/docs`
-- [ ] Run `pnpm build` — zero errors (code-implementation compile check)
+- [ ] Delete all `src/lib/supabase/*` and `supabase/migrations/*`
+- [ ] Remove `@supabase/*` packages from `package.json`
+- [ ] Run `pnpm build` — zero errors
 
 ## Success Criteria
-- A new user can: sign up → create org (auto) → hit dashboard (empty state) → sign out
-- RLS policies tested: user A cannot read user B's org data
+- A new user can: hit `/login` → receive magic link email → click → land on `/dashboard` (empty state) → sign out
+- Google OAuth alternative works
+- User A cannot read user B's org data (verified by server action that filters on `session.user.orgId`)
 - Vercel preview deploys on PR, production on main
 - CI passes on clean main
-- `pnpm build` green
+- `pnpm build` green with zero Supabase references in the repo
+- `docs/design-guidelines.md` exists and captures: typography pairing, color ramp, spacing scale, radius + shadow tokens, icon library, dark-mode rules, forbidden-copy list, AI-Tells checklist — all ready for phases 02–09 to consume
+- App shell renders in Vietnamese + English without diacritic clipping at 360 px, 768 px, 1280 px breakpoints; dark mode toggled via `prefers-color-scheme` with no FOUC; focus rings visible on every interactive element
 
 ## Risk Assessment
-- **Risk:** pgvector not available on free tier. **Mitigation:** Upgrade to Pro ($25/mo) early — already in budget.
-- **Risk:** Supabase SSR cookie quirks with App Router. **Mitigation:** Follow `@supabase/ssr` official docs exactly; use docs-seeker if errors.
+- **Risk:** Auth.js v5 is beta — breaking API changes possible. **Mitigation:** Pin to exact version; read `node_modules/next-auth/CHANGELOG.md` before upgrading.
+- **Risk:** No RLS means one bad query can leak org data across tenants. **Mitigation:** Code review rule — every Drizzle query in server code must `.where(eq(table.orgId, session.user.orgId))`. Add an ESLint rule or a test helper that scans for missing `orgId` predicates.
+- **Risk:** Drizzle migrations not as mature as Prisma. **Mitigation:** Keep schemas simple; run `drizzle-kit check` in CI.
+- **Risk:** Vercel Blob 500MB file cap per blob — fine for SDS PDFs (<25MB), but need to document.
 
 ## Security Considerations
-- All tables with `org_id` have RLS enabled from day 1
-- `.env.local` in `.gitignore`; Vercel env vars for production secrets
-- Service role key ONLY server-side, never shipped to client
+- All `.env.local` files gitignored; Vercel env vars for production.
+- `AUTH_SECRET` rotated per environment.
+- Blob token never shipped client-side; uploads go through server actions that authenticate first.
+- CSRF: Auth.js v5 handles automatically for credentials flows; `signIn()` from `"use server"` actions is safe.
+- Every server action starts with `const { userId, orgId } = await requireOrg()` — enforce via code review + eslint plugin.
 
 ## Next Steps
-→ Phase 02: SDS Upload Pipeline
+→ Phase 02: SDS Upload Pipeline (Vercel Blob + Inngest)

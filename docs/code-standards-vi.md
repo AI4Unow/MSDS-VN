@@ -1,8 +1,8 @@
 # Tiêu chuẩn Code & Hướng dẫn
 
 ## Giới hạn Tech Stack
-- **Next.js 15 App Router**: Tuyệt đối tránh thiết kế Pages router. Tối đa hóa hiệu năng qua React Server Components, Client Components chỉ sử dụng khi thật sự cần tính tương tác.
-- **Supabase**: Áp dụng mô hình Supabase SSR auth cho Next.js 15. Tính năng cách ly doanh nghiệp (tenant separation) bắt buộc phải được áp dụng chặt chẽ ở cấp độ Cơ sở dữ liệu thông qua Row Level Security (RLS).
+- **Next.js 16 App Router**: Tuyệt đối tránh thiết kế Pages router. Tối đa hóa hiệu năng qua React Server Components, Client Components chỉ sử dụng khi thật sự cần tính tương tác.
+- **Supabase**: Áp dụng mô hình Supabase SSR auth cho Next.js 16. Tính năng cách ly doanh nghiệp (tenant separation) bắt buộc phải được áp dụng chặt chẽ ở cấp độ Cơ sở dữ liệu thông qua Row Level Security (RLS).
 - **TypeScript**: Bật chế độ Strict mode. Định nghĩa rõ ràng các interface cho mọi cấu trúc Database và API.
 
 ## Yêu cầu Tổ chức File

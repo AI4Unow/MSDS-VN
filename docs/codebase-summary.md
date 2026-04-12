@@ -1,13 +1,47 @@
 # Codebase Summary
 
-This document summarizes the layout and status of the MSDS Platform codebase.
+## Current State: Clean Slate (2026-04-12)
 
-*(As of April 2026, the codebase is in its foundational phase. The directory is populated mostly with regulatory reference materials and architectural plans.)*
+All source code has been deleted in preparation for a fresh rebuild on the Vercel-native stack. Only the Next.js 16 shell remains.
 
-## Directory Structure
-- `/plans/`: Product requirement documents, brainstorming notes, phase-by-phase implementation plans, interview guides, and wiki schemas.
-- `/docs/`: Source of truth for project architecture and development roadmap.
-- `/*.docx` & `/*.pdf`: Vietnamese legal source documents (such as Thông tư 01/2026/TT-BCT and Luật 69/2025/QH15) driving product requirements and compliance constraints.
+## Project Structure
+```
+MSDS/
+├── src/
+│   └── app/
+│       ├── layout.tsx      # Root layout (Geist fonts, vi lang)
+│       ├── page.tsx         # Placeholder home page
+│       └── globals.css      # Tailwind v4 base styles
+├── plans/                   # Implementation plans (10 phases preserved)
+├── docs/                    # Project documentation
+├── public/                  # Static assets
+├── package.json             # Next.js 16 + React 19 + core deps
+├── next.config.ts           # Next.js configuration
+├── tsconfig.json            # TypeScript config
+├── eslint.config.mjs        # ESLint config
+├── postcss.config.mjs       # PostCSS config
+├── components.json          # shadcn/ui config
+└── pnpm-workspace.yaml      # pnpm workspace config
+```
 
-## Current State
-The project has undergone rigorous pre-code validation (Phase 00) and regulatory mapping. Code scaffolding (Phase 01) involving Next.js and Supabase is slated to commence shortly. The `plans/260411-0732-sds-platform` folder contains the detailed implementation rollout.
+## Core Dependencies (post-wipe)
+- next 16.2.3, react 19.2.4
+- tailwindcss v4, shadcn v4, tw-animate-css
+- inngest (background jobs)
+- zod (validation)
+- lucide-react (icons)
+- @react-pdf/renderer (safety card PDF)
+- qrcode (QR generation)
+- react-dropzone (file upload)
+- jose (JWT)
+- nanoid (ID generation)
+
+## Dependencies to Add (Phase 01)
+- `@vercel/postgres` + `drizzle-orm` + `drizzle-kit` (database)
+- `next-auth` + `@auth/drizzle-adapter` (authentication)
+- `@vercel/blob` (file storage)
+- `ai` + `@ai-sdk/google` (AI/LLM)
+
+## File Count
+- 3 source files (layout, page, globals)
+- 0 components, 0 API routes, 0 lib modules

@@ -1,34 +1,73 @@
 ---
 phase: 09
-name: Billing Scaffold + Landing + Launch
+name: Landing + Legal + Launch (no billing)
 weeks: 11-12
 priority: P0-launch
-status: not-started
+status: needs-rework
 ---
 
-# Phase 09 — Billing + Landing + Launch
+# Phase 09 — Landing + Legal + Launch
 
 ## Context
 - Brainstorm §7 (Week 11–12), §11 (Pricing), §12 (Next Steps)
 - Depends on: All prior phases
-- Launch gate: Asia Shine converts to paid
+- Launch gate: Asia Shine actively using the product (free tier) + 3 design partners + legal pages live
+- **Breaking change (2026-04-12):** Stripe and all payment-processor integration removed from MVP. Free tier only at launch. Billing deferred post-MVP.
+
+## Frontend Build Protocol ⭐ (this is where the frontend-design skill earns its keep)
+Activate `ck:ui-ux-pro-max` + `ck:frontend-design` before any UI work — **budget 3 extra days of polish beyond the rest of the MVP**. The landing page is the trust handshake before a 2.49M VND/month commitment from a VN EHS manager whose legal exposure is personal. AI-slop kills the deal silently.
+
+**Non-negotiables (landing page):**
+1. **Hero layout:** left-aligned or split-screen (real product screenshot right). **Never** centered-hero-with-gradient-blob — that is the slop signature of every AI-generated SaaS landing in 2026. Use `DESIGN_VARIANCE=3` from `docs/design-guidelines.md` — disciplined, not safe.
+2. **Real screenshots only.** No stock photography, no AI-generated art, no Unsplash warehouse pictures. Product screenshots of the actual VI safety card + chat UI (blurred for trade secrets if needed). If a screenshot doesn't exist yet, hand-build a high-fidelity mock in Figma first — do not ship Lorem-ipsum dashboards.
+3. **Atmosphere, not decoration:** subtle noise texture (SVG filter, 2–3% opacity) + one restrained gradient mesh behind the hero. No floating blobs, no animated gradients, no parallax.
+4. **Typography-led hierarchy:** Be Vietnam Pro for VN copy, Geist or Manrope for EN toggle. Display sizes 48–72 px for hero headline. Real line-length control (`max-w-[62ch]` on prose). No "Elevate / Seamless / Unleash / Empower / Supercharge" copy — those words are on the forbidden list in `docs/design-guidelines.md`.
+5. **Vietnamese-first copy** written by a human who knows the VN EHS manager's actual pain (Circular 01/2026 deadline panic, MOIT inspector risk). EN toggle is a courtesy, not parity. Testimonials are from real VN companies only (Asia Shine + design partners) — attributed with full name, title, company, and photo. Never stock-photo testimonials.
+6. **Color discipline:** graphite neutral scale + safety amber (#D97706) as the single accent. No purple-to-blue gradients, no "AI glow" effects. Amber means "hazard / regulatory action" — earns its salience.
+7. **Icons:** Phosphor (Regular weight) only. No Lucide (AI default), no emoji as icon. GHS pictograms as labeled SVGs on any feature card that mentions hazard classification.
+8. **Feature grid:** 3-column editorial layout with real mini-screenshots, not icon-title-description cards. Each feature block leads with a product screenshot above a short Vietnamese paragraph. Max 6 feature blocks — restraint over completeness.
+
+**Pricing page:**
+- 5-tier comparison table (the brainstorm §11 grid), display-only. Single CTA per row: "Tham gia waitlist" / "Join waitlist".
+- No "Most popular" badge shouting. Pro tier gets a quiet accent border only.
+- Transparent "no checkout yet" footnote — honesty is the brand.
+- VND primary, USD in small parens. Locale toggle switches which is primary.
+
+**Legal pages (`/terms`, `/privacy`, `/dpa`):**
+- Editorial long-form aesthetic — Stripe Legal × VN government document. Max prose width 72ch. Sequential h1→h6. Table of contents with `scroll-margin-top`. No decorative hero, no marketing voice — legal pages must *read* like a legal document, not a marketing page with legal text pasted in.
+- Non-dismissable AI disclaimer callout box at the top of the EULA, styled as a genuine warning (amber border + amber-50 background), not a cute notification.
+- Timestamp + version footer so customers can audit revisions.
+
+**Waitlist form:**
+- Single-column, large touch targets (≥48 dp), autofocus on email field, Vietnamese error messages for validation, honeypot hidden field, success state that thanks the user by name and shows their queue position if known.
+- No modal — dedicated page. Modals are slop shortcuts.
+
+**Shared AiDisclaimerFooter component:**
+- 8 pt, small-caps, muted graphite, non-dismissable, appears on every safety card PDF + every chat assistant message. Copy: "Phiếu này được tạo tự động bằng AI. Người dùng phải tự xác minh trước khi sử dụng. SDS Platform không chịu trách nhiệm pháp lý cho việc sử dụng không đúng." (EN parallel beneath in smaller caps.)
+
+**Pre-ship gates (blocking — do not launch without):**
+- Lighthouse on `/` (landing) and `/pricing`: **Performance ≥95, Accessibility ≥95, Best Practices ≥95, SEO ≥95.** Test throttled to 3G Fast + mobile viewport. Fail any axis → fix before shipping.
+- Anti-slop checklist run manually: no gradient blobs, no "AI" in copy outside the honest disclaimer, no stock photos, no forbidden words, no emoji-as-icon, no centered-hero-with-blob, no "Unleash your X" CTAs, no three-dot bouncing loaders.
+- Real-device test: Samsung A-series Android (the warehouse manager's phone), Safari on iOS, both <3 s full paint on real 4G.
+- VN diacritic rendering verified on all headlines at 360/768/1280 px breakpoints.
+- EHS-manager dry-read: one actual VN EHS manager (not a designer, not a dev) reads the landing page cold and tells you in one sentence what the product does. If the sentence is wrong → rewrite copy, not design.
 
 ## Overview
-Stripe billing (MoMo/VNPay deferred post-MVP per brainstorm), marketing landing, legal review, monitoring hardening, then public beta launch + Asia Shine paid conversion.
+Marketing landing, legal review, monitoring hardening, then public beta launch. Billing scaffold is **explicitly deferred** — no payment processor is integrated in the MVP. Plan tiers are documented on the pricing page but gated by a single "request access" CTA that routes to a waitlist form. Asia Shine runs on a complimentary free-tier slot during the MVP window.
 
 ## Requirements
-- Stripe integration (checkout + customer portal)
-- Plan tiers enforced via feature gates (brainstorm §11)
-- Marketing landing page (Vietnamese + English)
-- Waitlist → onboarding conversion flow
-- VN lawyer-reviewed EULA + privacy policy — **must include AI-output disclaimer, 12-month-fees liability cap, venue clause, consultant-review-as-evidence recital**
+- Marketing landing page (Vietnamese primary + English toggle)
+- Public pricing page (static — no checkout; CTA = waitlist)
+- Waitlist → onboarding conversion flow (email capture via Resend)
+- VN lawyer-reviewed EULA + privacy policy + DPA — **must include AI-output disclaimer, 12-month-fees liability cap, venue clause, consultant-review-as-evidence recital**
 - Sentry + Vercel Analytics in production
-- **E&O insurance (UQ #5 — DECIDED 2026-04-11):** NOT purchased at launch. Decision: rely on EULA liability cap + AI-output disclaimer + human-in-the-loop review UI (phase-03) + EHS-consultant-reviewed wiki + first-50-cards consultant sign-off (phase-06) as the complete defensive stack. Reassess if (a) first legal threat received, (b) >10 paying customers, or (c) any enterprise prospect requires proof of coverage in procurement. **Risk owned explicitly by founder.** Document decision + reassessment triggers in `docs/system-architecture.md` risk log.
-- Asia Shine paid conversion
+- **E&O insurance (UQ #5 — DECIDED 2026-04-11):** NOT purchased at launch. Rely on EULA liability cap + AI-output disclaimer + human-in-the-loop review UI (phase-03) + EHS-consultant-reviewed wiki + first-50-cards consultant sign-off (phase-06) as the complete defensive stack. Reassess if (a) first legal threat received, (b) >10 paying customers, or (c) any enterprise prospect requires proof of coverage in procurement. **Risk owned explicitly by founder.** Document decision + reassessment triggers in `docs/system-architecture.md` risk log.
+- Asia Shine onboarded on free tier
 - 3+ design partners actively using
 - Public beta announcement
 
-## Pricing Tiers (from brainstorm §11 — features gated)
+## Pricing Tiers — DISPLAY ONLY (no enforcement at MVP)
+From brainstorm §11. All numbers shown on `/pricing` for positioning. No entitlement checks in code at MVP; everyone runs at the Pro limit.
 | Plan | Price (VND/mo) | SDSs | VI cards | Chat | Seats |
 |---|---|---|---|---|---|
 | Free | 0 | 5 | 0 | 0 msgs | 1 |
@@ -37,128 +76,134 @@ Stripe billing (MoMo/VNPay deferred post-MVP per brainstorm), marketing landing,
 | Business | 7.9M (~$320) | unlimited | unlimited | unlimited | 10 + API |
 | Enterprise | contact | — | — | — | — |
 
+> **Deferred to post-MVP:** Stripe integration, checkout, customer portal, webhook handler, `entitlements.ts`, `usage-meter.ts`, billing settings page with upgrade CTA. Keep the on-brand pricing page so we can add the purchase flow later without redesign.
+
 ## Related Files
+
 **Create:**
-- `supabase/migrations/0009_billing.sql`
+- `src/app/(marketing)/page.tsx` — landing (VN + EN toggle)
+- `src/app/(marketing)/pricing/page.tsx` — static tiers + "Join waitlist" CTA
+- `src/app/(marketing)/waitlist/page.tsx` — email capture
+- `src/app/api/waitlist/route.ts` — Resend send + Drizzle insert into `waitlist_signups`
+- `src/lib/db/schema/waitlist.ts` — `waitlist_signups` table
+- `drizzle/migrations/0008_waitlist.sql`
+- `src/app/(legal)/terms/page.tsx`
+- `src/app/(legal)/privacy/page.tsx`
+- `src/app/(legal)/dpa/page.tsx`
+- `src/components/marketing/hero.tsx`, `feature-grid.tsx`, `social-proof.tsx`, `cta-card.tsx`
+- `src/components/marketing/ai-disclaimer-footer.tsx` — persistent on every safety card PDF + chat message (shared component)
+- `docs/deployment-guide.md`
+- `docs/project-changelog.md` — initialize
+- `docs/development-roadmap.md` — initialize post-MVP roadmap (first entry: billing)
+
+**Delete (prior Stripe baseline):**
 - `src/lib/billing/stripe.ts`
-- `src/lib/billing/entitlements.ts` — feature gate checks
-- `src/lib/billing/usage-meter.ts` — SDSs, cards, chat msgs counters
+- `src/lib/billing/entitlements.ts`
+- `src/lib/billing/usage-meter.ts`
 - `src/app/api/stripe/webhook/route.ts`
 - `src/app/api/stripe/checkout/route.ts`
 - `src/app/api/stripe/portal/route.ts`
-- `src/app/(app)/settings/billing/page.tsx` — plan, usage, upgrade
-- `src/app/(marketing)/page.tsx` — landing (VN + EN toggle)
-- `src/app/(marketing)/pricing/page.tsx`
-- `src/app/(marketing)/waitlist/page.tsx`
-- `src/app/(legal)/terms/page.tsx`
-- `src/app/(legal)/privacy/page.tsx`
-- `src/app/(legal)/dpa/page.tsx` — data processing addendum
-- `docs/deployment-guide.md`
-- `docs/project-changelog.md` — initialize
-- `docs/development-roadmap.md` — initialize post-MVP roadmap
+- `src/app/(app)/settings/billing/page.tsx` (or stub to "Coming soon")
+- `stripe` dep from `package.json`
+- Any `stripe_customer_id`, `subscription_status`, `trial_ends_at`, `current_period_end` columns from `organizations` schema
 
-## Data Model (migration 0009)
-```sql
-alter table organizations add column stripe_customer_id text;
-alter table organizations add column plan text default 'free'
-  check (plan in ('free','starter','pro','business','enterprise'));
-alter table organizations add column subscription_status text;
-alter table organizations add column trial_ends_at timestamptz;
-alter table organizations add column current_period_end timestamptz;
-
-create table usage_counters (
-  org_id uuid not null references organizations(id) on delete cascade,
-  period_start date not null,
-  sds_uploaded int default 0,
-  cards_generated int default 0,
-  chat_messages int default 0,
-  primary key (org_id, period_start)
-);
-
-alter table usage_counters enable row level security;
-create policy "org members read usage" on usage_counters
-  using (org_id = (select org_id from users where supabase_auth_id = auth.uid()));
+## Data Model (Drizzle — `src/lib/db/schema/waitlist.ts`)
+```ts
+export const waitlistSignups = pgTable('waitlist_signups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  companyName: text('company_name'),
+  role: text('role'),
+  locale: text('locale').default('vi').notNull(),
+  source: text('source'),                         // "landing", "pricing", "blog"
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 ```
+
+**Remove from `organizations`:** `stripe_customer_id`, `subscription_status`, `trial_ends_at`, `current_period_end`. Keep `plan` column with default `'free'` for future use.
 
 ## Implementation Steps
 
-### Billing (Stripe)
-1. Apply migration 0009
-2. Create Stripe products + prices matching 5 plan tiers
-3. Implement checkout route: create Stripe Customer → Checkout Session → redirect
-4. Webhook handler for: `customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`
-5. `entitlements.ts`: check if org's plan allows action before it proceeds (throw `EntitlementError` if not)
-6. Apply entitlement checks at: SDS upload (count), card generation (count), chat send (count), invite member (seat count)
-7. Usage meter: increment counters on each billable action; reset monthly via Inngest cron
-8. Billing page: current plan, usage bars, upgrade/downgrade buttons, customer portal link
-
 ### Landing + Waitlist
-9. Build landing page (VN primary, EN toggle): hero, killer feature demos (card generator + chat), pricing, social proof (Asia Shine case study), CTA
-10. Waitlist form → email capture → Resend welcome email
-11. Analytics: Vercel Analytics + PostHog for funnel tracking
+1. Build landing page (VN primary, EN toggle): hero, killer feature demos (card generator + chat), pricing teaser, social proof (Asia Shine case study placeholder), CTA → waitlist.
+2. Build `/pricing` page: 5-tier comparison table, "Request access" CTA → waitlist.
+3. Build `/waitlist` form → `/api/waitlist` → Drizzle insert + Resend welcome email.
+4. Analytics: Vercel Analytics + PostHog for funnel tracking.
 
 ### Legal (primary shield — no E&O fallback)
-12. VN lawyer engaged (from Phase 00 shortlist) for EULA + privacy + DPA review (~5–10M VND budget per brainstorm §12). **EULA non-negotiable clauses:**
-    - Explicit disclaimer: all AI-generated safety cards + chat answers are advisory only; customer remains legally responsible for MOIT compliance verification
-    - Liability cap: 12 months of fees paid to SDS Platform, not to exceed 30M VND per claim
-    - Indemnification: customer indemnifies platform for losses arising from customer's reliance without their own verification
-    - Venue clause: lawyer's call (Singapore arbitration likely, VN courts secondary)
-    - Recital: customer acknowledges EHS-consultant-reviewed regulation corpus + human-review-UI + consultant sign-off on first 50 cards as material diligence
-    - Kill switch: platform reserves right to suspend account if customer misuses outputs (e.g., prints cards without required internal review)
-13. Publish legal pages; add persistent "AI-generated, verify before use" disclaimer footer on every safety card PDF + chat message
-14. Cookie banner for VN compliance
-15. **No E&O purchase at launch.** Instead: write risk log entry in `docs/system-architecture.md` documenting Q5 decision, the four defensive controls (EULA, disclaimer, human review, consultant gate), and the three reassessment triggers (first threat / >10 customers / enterprise procurement demand)
+5. VN lawyer engaged (from Phase 00 shortlist) for EULA + privacy + DPA review (~5–10M VND budget per brainstorm §12). **EULA non-negotiable clauses:**
+   - Explicit disclaimer: all AI-generated safety cards + chat answers are advisory only; customer remains legally responsible for MOIT compliance verification
+   - Liability cap: 12 months of fees paid to SDS Platform (given free tier = 0 VND at MVP, cap-at-zero is legally awkward — lawyer must draft language that still holds for paid future customers; until then treat claims as capped by a stated floor / goodwill refund)
+   - Indemnification: customer indemnifies platform for losses arising from customer's reliance without their own verification
+   - Venue clause: lawyer's call (Singapore arbitration likely, VN courts secondary)
+   - Recital: customer acknowledges EHS-consultant-reviewed regulation corpus + human-review-UI + consultant sign-off on first 50 cards as material diligence
+   - Kill switch: platform reserves right to suspend account if customer misuses outputs
+6. Publish legal pages; mount `<AiDisclaimerFooter />` on every safety card PDF footer + every chat assistant message.
+7. Cookie banner for VN compliance.
+8. **No E&O purchase at launch.** Write risk log entry in `docs/system-architecture.md` documenting Q5 decision, four defensive controls (EULA, disclaimer, human review, consultant gate), and three reassessment triggers.
 
 ### Monitoring + Launch
-16. Sentry configured with source maps + user context
-17. Vercel Analytics enabled
-18. Uptime monitoring (Better Uptime / Betterstack) on landing + app
-19. Alert routing: PagerDuty or email on p95 latency spike + error rate >1%
-20. Asia Shine paid conversion: walkthrough + annual pre-pay offer (2 months free incentive)
-21. 3 more design partner onboarding calls
-22. Public beta announcement: LinkedIn + VN chemical industry groups + VN EHS forums
-23. Post-launch: daily standup-with-self; track 7-day churn
+9. Sentry configured with source maps + user context (Auth.js session → Sentry `user.id`).
+10. Vercel Analytics enabled.
+11. Uptime monitoring (Better Uptime / Betterstack) on landing + app.
+12. Alert routing: email-only at MVP (no PagerDuty until paid customer exists) on error rate >1% or p95 latency spike.
+13. Asia Shine onboarding: complimentary free-tier access; personal walkthrough; weekly check-in during first month.
+14. 3 more design partner onboarding calls.
+15. Public beta announcement: LinkedIn + VN chemical industry groups + VN EHS forums.
+16. Post-launch: daily standup-with-self; track 7-day churn + weekly active orgs.
 
 ## Todo List
-- [ ] Migration 0009
-- [ ] Stripe products + webhooks
-- [ ] Entitlements + usage meter
-- [ ] Billing settings page
+- [ ] Activate `ck:ui-ux-pro-max` + `ck:frontend-design` before any landing/legal/pricing work
+- [ ] High-fidelity Figma mocks of landing hero + feature grid before code (no Lorem-ipsum shipping)
+- [ ] Real product screenshots captured (safety card PDF + chat UI) — not stock, not AI art
+- [ ] Anti-slop checklist run manually on landing + pricing
+- [ ] Lighthouse ≥95 on all 4 axes (Performance / A11y / Best Practices / SEO) on `/` and `/pricing`, 3G Fast + mobile
+- [ ] Real-device smoke test (Samsung A-series + iOS Safari, <3 s paint on 4G)
+- [ ] EHS-manager dry-read test (one sentence product description from a real VN EHS manager)
+- [ ] Delete Stripe files + `stripe` dep + billing schema columns
+- [ ] Drizzle schema + migration 0008 for `waitlist_signups`
 - [ ] Landing page (VN + EN)
-- [ ] Pricing page
-- [ ] Waitlist → onboarding
-- [ ] Legal pages (lawyer-reviewed) — EULA with 6 non-negotiable clauses above
-- [ ] AI-output disclaimer footer on every card PDF + chat message
+- [ ] Pricing page (display only, waitlist CTA)
+- [ ] Waitlist form + `/api/waitlist` route
+- [ ] Resend welcome email template (React Email)
+- [ ] `<AiDisclaimerFooter />` component wired into safety card PDF + chat
+- [ ] Legal pages (lawyer-reviewed) — EULA with non-negotiable clauses above
 - [ ] Risk log in `docs/system-architecture.md` (Q5 decision + reassessment triggers)
-- [ ] Sentry + analytics + uptime
-- [ ] Asia Shine paid conversion
+- [ ] Sentry + Vercel Analytics + uptime monitoring
+- [ ] Asia Shine onboarded on free tier
 - [ ] 3 design partners active
 - [ ] Public beta announcement
 - [ ] Initialize `docs/project-changelog.md`
-- [ ] Initialize `docs/development-roadmap.md` (post-MVP)
+- [ ] Initialize `docs/development-roadmap.md` (post-MVP) — **top item: "Billing integration (Stripe or VN-native)"**
+- [ ] Stub `/settings/billing` with "Coming soon — free tier at MVP"
 
 ## Success Criteria (MVP DONE gate)
-- Asia Shine on paid Pro plan
+- Asia Shine actively using the product on free tier
 - 3 design partners with weekly activity
-- <$0.30 avg Claude cost / SDS in production
-- p95 upload → extraction complete < 90 seconds
+- <$0.10 avg Gemini cost / SDS in production
+- p95 upload → extraction complete < 60 seconds (Gemini is faster than Claude vision)
 - 0 P0 bugs open
-- Legal pages live
+- Legal pages live, EULA lawyer-approved
 - Public beta announced
+- Zero Stripe / `@stripe/*` references remaining in the repo
 
 ## Risk Assessment
-- **Risk:** Stripe not accepting VN cards reliably. **Mitigation:** Design schema multi-provider from day 1 (already done in brainstorm); add MoMo/VNPay in month 4 if needed.
-- **Risk:** Asia Shine doesn't convert. **Mitigation:** Extended trial + discount; alt plan: convert 1 of the 3 other design partners.
+- **Risk:** No billing means no revenue signal during MVP. **Mitigation:** Accepted — Phase 00 validation interviews + LOI commitments substitute for early monetization. Billing becomes the #1 post-MVP priority. If any design partner demands a paid slot before post-MVP, manual invoice in VND bank transfer is acceptable.
+- **Risk:** Free tier abuse (sign-ups burning Gemini tokens). **Mitigation:** Waitlist gate for all new orgs at launch — only manually-approved waitlist entries get access; per-org soft rate limit on extraction + chat.
 - **Risk:** Lawyer slow. **Mitigation:** Engaged in Phase 00 already; 6 weeks runway.
+- **Risk:** Asia Shine never converts after MVP. **Mitigation:** Extended complimentary access + formal post-MVP billing conversation as part of the public-beta retrospective.
 
 ## Security Considerations
-- Stripe webhook signature verification
-- PCI scope minimized (Checkout + Portal hosted by Stripe)
-- Customer portal allows self-serve cancel (required by EU consumer law; good practice in VN)
+- Waitlist form: basic email validation + honeypot + rate limit (5/min/IP).
+- No PCI scope because no card data collected.
+- Legal pages indexed (robots allow), admin pages noindex.
+- AI disclaimer footer is non-dismissable on every AI-generated artifact.
 
 ## Next Steps (Post-MVP — 180-day milestones from brainstorm)
+- **Billing integration (P0 post-MVP):** Stripe Checkout + Customer Portal + entitlements + usage meter (revive deleted files from git history as starting point)
 - Expiry alerts + Magic Mailbox email ingest
-- MoMo/VNPay
+- MoMo/VNPay VN-native payment providers
 - TH localization start
 - Scale to 10 paying orgs (MRR ≥ 15M VND)
 - Evaluate VN-hosted backend (brainstorm UQ #1) if data residency becomes blocker

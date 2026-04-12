@@ -3,14 +3,18 @@ phase: 04
 name: Chemicals Master (PubChem) + Search
 week: 5
 priority: P0
-status: not-started
+status: needs-rework
 ---
 
 # Phase 04 — Chemicals Master + PubChem Enrichment + Search
 
 ## Context
 - Brainstorm §5 (data model `chemicals`, `sds_chemicals`), MVP feature #5
-- Depends on: Phase 03 (extraction produces CAS list)
+- Depends on: Phase 03 (extraction produces CAS list), Phase 01 `docs/design-guidelines.md`
+- **Stack migration (2026-04-12):** Schema now defined via Drizzle; RLS removed (app-level `requireOrg()` guards); all references to `auth.uid()` / `supabase_auth_id` deleted.
+
+## Frontend Build Protocol
+Activate `ck:ui-ux-pro-max` + `ck:frontend-design` before UI work. Specifics: chemicals list = dense sortable table (no card grid — anti-slop); chemical detail page = editorial long-form layout, GHS pictograms as official SVGs with visible hazard labels (never color-only — a11y rule); Appendix XIX priority chemicals get a subtle amber left-border stripe + `aria-label`, never a "⚠️" emoji (anti-slop: no emoji as icon); cmd-k search must open <100 ms, use Phosphor icons, and return results grouped by type (SDS / Chemicals / Wiki) with Vietnamese diacritic-insensitive matching.
 
 ## Overview
 Global `chemicals` master table keyed by CAS. PubChem REST API enrichment. Link extracted SDS components to chemical master. Full-text search across SDSs and chemicals.
@@ -27,7 +31,8 @@ Global `chemicals` master table keyed by CAS. PubChem REST API enrichment. Link 
 
 ## Related Files
 **Create:**
-- `supabase/migrations/0004_chemicals.sql`
+- `src/lib/db/schema/chemicals.ts` — Drizzle schema
+- `drizzle/migrations/0003_chemicals.sql` — generated
 - `src/lib/chem/cas-validator.ts` — check-digit algorithm
 - `src/lib/chem/pubchem-client.ts` — REST wrapper
 - `src/lib/chem/enrich-chemical.ts` — orchestrates PubChem fetch + insert
@@ -41,49 +46,49 @@ Global `chemicals` master table keyed by CAS. PubChem REST API enrichment. Link 
 **Modify:**
 - `src/inngest/functions/extract-sds.ts` — after extraction, enqueue enrichment per new CAS
 
-## Data Model (migration 0004)
-```sql
-create table chemicals (
-  cas_number text primary key,          -- "108-88-3"
-  ec_number text,
-  pubchem_cid int,
-  iupac_name text,
-  common_name text,
-  synonyms text[],
-  molecular_formula text,
-  molecular_weight numeric,
-  ghs jsonb,                            -- {pictograms: [], h_codes: [], p_codes: []}
-  hazards jsonb,                        -- physical, health, environmental arrays
-  physical jsonb,                       -- boiling_point, flash_point, etc.
-  reach_svhc boolean default false,
-  vn_restricted boolean default false,  -- Decree 24/2026/ND-CP restricted chemicals
-  vn_appendix_xix boolean default false, -- Circular 01/2026 Appendix XIX priority disclosure
-  vn_special_control_group int,         -- Decree 24/2026 Group 1 or 2, null if not listed
-  source text default 'pubchem',
-  updated_at timestamptz default now()
-);
-create index on chemicals using gin (synonyms);
-create index on chemicals using gin (to_tsvector('simple', coalesce(iupac_name,'') || ' ' || coalesce(common_name,'')));
+## Data Model (Drizzle — `src/lib/db/schema/chemicals.ts`)
+```ts
+export const chemicals = pgTable('chemicals', {
+  casNumber: text('cas_number').primaryKey(),         // "108-88-3"
+  ecNumber: text('ec_number'),
+  pubchemCid: integer('pubchem_cid'),
+  iupacName: text('iupac_name'),
+  commonName: text('common_name'),
+  synonyms: text('synonyms').array(),
+  molecularFormula: text('molecular_formula'),
+  molecularWeight: numeric('molecular_weight'),
+  ghs: jsonb('ghs'),                                   // {pictograms, h_codes, p_codes}
+  hazards: jsonb('hazards'),                           // physical, health, environmental
+  physical: jsonb('physical'),                         // boiling_point, flash_point, ...
+  reachSvhc: boolean('reach_svhc').default(false).notNull(),
+  vnRestricted: boolean('vn_restricted').default(false).notNull(),      // Decree 24/2026
+  vnAppendixXix: boolean('vn_appendix_xix').default(false).notNull(),    // Circular 01/2026 App. XIX
+  vnSpecialControlGroup: integer('vn_special_control_group'),            // Decree 24/2026 group 1/2
+  source: text('source').default('pubchem').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+  synonymsIdx: index('chemicals_synonyms_gin').using('gin', t.synonyms),
+  searchIdx: index('chemicals_search_gin').using(
+    'gin',
+    sql`to_tsvector('simple', coalesce(${t.iupacName},'') || ' ' || coalesce(${t.commonName},''))`,
+  ),
+}));
 
-create table sds_chemicals (
-  sds_id uuid not null references sds_documents(id) on delete cascade,
-  cas_number text not null references chemicals(cas_number),
-  weight_percent numeric,
-  is_main boolean default false,
-  primary key (sds_id, cas_number)
-);
-
--- chemicals table: public read, no write from client
-alter table chemicals enable row level security;
-create policy "public read" on chemicals for select using (true);
--- sds_chemicals: org-scoped via sds_documents join
-alter table sds_chemicals enable row level security;
-create policy "org members" on sds_chemicals
-  using (exists(select 1 from sds_documents where id = sds_id and org_id = (select org_id from users where supabase_auth_id = auth.uid())));
+export const sdsChemicals = pgTable('sds_chemicals', {
+  sdsId: uuid('sds_id').notNull().references(() => sdsDocuments.id, { onDelete: 'cascade' }),
+  casNumber: text('cas_number').notNull().references(() => chemicals.casNumber),
+  weightPercent: numeric('weight_percent'),
+  isMain: boolean('is_main').default(false).notNull(),
+}, (t) => ({ pk: primaryKey({ columns: [t.sdsId, t.casNumber] }) }));
 ```
 
+**Access pattern (no RLS):**
+- `chemicals` is a globally-readable master table — all server actions may read without org filtering.
+- `sds_chemicals` is read via a join against `sds_documents`; the caller must first load the parent `sds_documents` row with `requireOrg()` filtering (`.where(eq(sdsDocuments.orgId, orgId))`), so access to `sds_chemicals` flows through that check.
+- No writes to `chemicals` from client — enrichment runs only in the `enrich-chemical` Inngest function (server-side, service-level).
+
 ## Implementation Steps
-1. Apply migration 0004
+1. Add Drizzle schema in `src/lib/db/schema/chemicals.ts`; `drizzle-kit generate` → migration 0003; apply.
 2. Implement CAS check-digit validator (well-known algorithm: sum of digits * position mod 10)
 3. Implement PubChem client: `/rest/pug/compound/name/{name}/JSON`, `/rest/pug/compound/cid/{cid}/JSON`, rate-limit to 5 req/sec (PubChem policy)
 4. Implement `enrich-chemical.ts`:
@@ -102,7 +107,7 @@ create policy "org members" on sds_chemicals
 12. Seed 200 common lab chemicals via PubChem batch to prime cache
 
 ## Todo List
-- [ ] Migration 0004
+- [ ] Drizzle schema + migration 0003 (`chemicals`, `sds_chemicals`)
 - [ ] CAS validator
 - [ ] PubChem client with rate limit
 - [ ] Enrichment Inngest function
@@ -123,7 +128,7 @@ create policy "org members" on sds_chemicals
 
 ## Risk Assessment
 - **Risk:** PubChem API downtime or rate limit. **Mitigation:** Retry with backoff; mark chemical as `source='unknown'` and allow manual override.
-- **Risk:** CAS extracted by Claude doesn't exist in PubChem (obscure chemicals). **Mitigation:** Still create chemicals row from SDS data, flag `source='sds-only'`.
+- **Risk:** CAS extracted by Gemini doesn't exist in PubChem (obscure chemicals). **Mitigation:** Still create chemicals row from SDS data, flag `source='sds-only'`.
 - **Risk:** VN regulatory flag (`vn_restricted`) cannot be set from PubChem. **Mitigation:** Populated manually from wiki pages in Phase 05.
 
 ## Next Steps

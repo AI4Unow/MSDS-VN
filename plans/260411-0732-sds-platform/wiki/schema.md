@@ -26,7 +26,7 @@ A compounding, LLM-maintained knowledge base of chemical regulatory information.
 ## 2. Three-Layer Architecture
 
 ### Layer 1 — Raw Sources (immutable)
-Stored at `raw-sources/` (git-tracked during MVP, moved to Supabase storage post-MVP).
+Stored at `raw-sources/` (git-tracked during MVP, moved to Vercel Blob post-MVP).
 Examples: `raw-sources/vn-circular-01-2026-tt-bct.docx`, `raw-sources/ghs-rev10-purple-book.pdf`, `raw-sources/echa-svhc-list-2026-01.csv`, `raw-sources/pubchem-compound-108-88-3.json`.
 **LLM never modifies these.** They are the ground truth.
 
@@ -282,14 +282,15 @@ Every page body follows a consistent template per type.
    b. If missing:
       - Fetch PubChem data (CID, GHS, synonyms)
       - Generate new chemical page using template
-      - Insert into wiki_pages + embeddings
+      - Insert into wiki_pages
    c. If present:
       - Compare new SDS data vs wiki page data
       - If wiki is more confident: no change
       - If new SDS adds info: LLM merges + updates wiki page
       - If contradiction: flag to review_queue
-4. Append to log.md: "{date} ingested SDS <id>, updated N pages"
+4. Revise related pages (Karpathy compounding step): for each new/updated cross-ref, append to the target hazard/regulation/country page's "Common chemicals" / "Referenced by" section. Bound ≤15 page revisions per ingest.
 5. Update index.md if new chemical added
+6. Prepend to log.md with consistent prefix: `INGEST {iso-date} sds=<id> cas=<cas> pages-touched=<n>` (newest on top, no truncation — full history retained; lint/query prompts slice `contentMd[0:8000]`)
 ```
 
 ### LLM ingest prompt skeleton
@@ -315,19 +316,17 @@ Schema: <contents of schema.md>
 
 ---
 
-## 8. Query Workflow (when a user asks a compliance question)
+## 8. Query Workflow (Karpathy Pattern — Index-Driven)
 
 ```
 1. User: "Is toluene restricted under Vietnam law?"
-2. Embed query (Voyage / OpenAI / Claude)
-3. Hybrid search:
-   a. pgvector semantic over wiki_embeddings (top 10)
-   b. Postgres tsvector keyword (top 10)
-   c. Merge with RRF or weighted average
-4. Read top 5 wiki pages in full (not just chunks)
+2. LLM reads wiki index.md via tool-use
+3. LLM identifies relevant pages from index
+4. LLM reads top 3-5 wiki pages in full via tool-use
 5. LLM answers with citations linking to source wiki pages
 6. Store message + citations in chat_messages
-7. Append to log.md: "{date} query about <topic>, cited <N> pages"
+7. Prepend to log.md with consistent prefix: `QUERY {iso-date} session=<id> topic=<slug> pages-cited=<n>`
+8. (Optional) Admin may promote a valuable answer → creates `topics/<slug>.md` and prepends `PROMOTE {iso-date} topic=<slug> from-message=<id>` to log.md
 ```
 
 ### LLM query prompt skeleton
@@ -366,7 +365,7 @@ Runs via Inngest scheduled function.
    c. Check for contradictions with related pages
 3. Scan for orphan pages (no incoming refs)
 4. Scan for stale pages (not updated in N months, source may be outdated)
-5. Write report to log.md: "{date} lint: N dangling, N orphans, N contradictions"
+5. Prepend to log.md: `LINT {iso-date} dangling=<n> orphans=<n> stale=<n> contradictions=<n>`
 6. If high-severity issues: email nad@... for review
 ```
 
@@ -388,9 +387,9 @@ Tasks:
 
 ## 10. Storage Decision
 
-**MVP:** Postgres `wiki_pages` table (content_md TEXT, frontmatter JSONB). Vectors in `wiki_embeddings`. Nightly dump to git repo for version history + audit trail.
+**MVP:** Postgres `wiki_pages` table (content_md TEXT, frontmatter JSONB). No embeddings table. Nightly dump to git repo for version history + audit trail.
 
-**Why not pure git:** app reads need transactional integrity + full-text + vector search. Git can't do this efficiently.
+**Why not pure git:** app reads need transactional integrity + full-text search. Git can't do this efficiently.
 
 **Why not pure Postgres:** git provides free change history, diff reviews, and backup. Dual-write keeps both benefits.
 
@@ -420,7 +419,7 @@ Every page must meet these minimums before being used in chat:
 
 - Primary locale for wiki is `en` (source of truth)
 - Vietnamese content stored in dedicated section `## VN language notes` within English pages
-- NOT translating the whole wiki to VN — use Claude runtime translation for user-facing safety card output
+- NOT translating the whole wiki to VN — use Gemini runtime translation (Vercel AI SDK, `gemini-3-flash-preview`) for user-facing safety card output
 - Post-MVP: consider bilingual pages with `locale: multi` and parallel sections
 
 ---
@@ -495,7 +494,7 @@ Initial seed pages to hand-author or LLM-generate before AI ingest is live:
 ---
 
 ## Unresolved Questions
-1. ~~Exact MOIT safety card template structure~~ **RESOLVED**: Circular 01/2026/TT-BCT Appendix I defines a 16-section table with explanation column. Source: `Thông-tư-01-2026-TT-BCT.docx` at repo root.
+1. ~~Exact MOIT safety card template structure~~ **RESOLVED**: Circular 01/2026/TT-BCT Appendix I defines a 16-section table with explanation column. Source: `plans/260411-0732-sds-platform/wiki/regulations/raw-sources/Thông-tư-01-2026-TT-BCT.docx`
 2. Whether to store frontmatter as YAML (readable, git-friendly) or JSONB (DB-native, queryable) — recommend YAML in markdown body + JSONB mirror in Postgres for indexing
-3. Embedding model choice (Voyage vs OpenAI vs Claude native) — decide at week 9 after cost/latency benchmark
+3. ~~Embedding model choice~~ **RESOLVED (2026-04-12)**: MVP uses NO embeddings — index-driven retrieval via curated `index.md` page read by Gemini at query time (Karpathy pattern). Reassess post-MVP if wiki exceeds ~500 pages or `index.md` exceeds ~8k tokens.
 4. Licensing: can we redistribute PubChem/ECHA data within our wiki? PubChem is public domain; ECHA bulk data has specific reuse terms — verify before launch

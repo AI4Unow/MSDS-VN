@@ -1,112 +1,203 @@
 ---
 phase: 07
-name: Compliance Chat (RAG + Citations)
+name: Compliance Chat (RAG + Citations) — Vercel AI SDK + Gemini
 week: 9
 priority: P0-differentiator
-status: not-started
+status: needs-rework
 ---
 
 # Phase 07 — Compliance Chat ⭐
 
 ## Context
 - Brainstorm §4 (differentiator #4), §5 "Request flow — Compliance Chat", §6 (LLM Wiki)
-- Depends on: Phase 05 (wiki corpus + index.md)
+- Depends on: Phase 05 (wiki corpus + `index.md`), Phase 01 `docs/design-guidelines.md`
+- **Breaking change (2026-04-12):** Anthropic/Claude SDK removed. Chat agent rebuilt on **Vercel AI SDK** (`streamText` + tool use) with Gemini models.
+
+## Frontend Build Protocol
+Activate `ck:ui-ux-pro-max` + `ck:frontend-design` before UI work. Specifics: chat is **three-column at desktop** (session list / message thread / citation drawer), collapses to single column <768 px; tool-call steps render as collapsed "Reading wiki…" accordions (never expanded by default — prevents AI-slop wall of text); citation chips `[1]` are real buttons (touch ≥ 44×44, focus ring, open drawer not modal); streaming indicator = subtle caret, not a bouncing three-dot loader (anti-slop); composer = textarea with auto-grow, send on `⌘↵`, shift-enter for newline; VN diacritic input must not break the autogrow. Admin "Promote to wiki" button appears only for `users.role === 'admin'` and sits quietly at message footer, not as a flashy CTA.
 
 ## Overview
-Chat interface answering VN chemical compliance questions, grounded in the LLM Wiki. Every answer includes citation links to wiki pages (legal defensibility). Hybrid retrieval: pgvector (semantic) + tsvector (keyword).
+Chat interface answering VN chemical compliance questions, grounded in the LLM Wiki. Every answer includes citation links to wiki pages (legal defensibility). Index-driven retrieval per Karpathy pattern (no embeddings). Streaming via Vercel AI SDK to the `useChat` React hook.
 
 > **2026 regulatory note:** High-value query topics include: Circular 01/2026 Article 10 (digital transformation / national chemical database integration), Appendix XIX (10 priority hazardous chemicals in products requiring mandatory disclosure), and Appendix XV (GHS classification principles). These must be seeded in the wiki (Phase 05) before chat goes live.
 
 ## Requirements
-- Chat UI (streamed responses)
+- Chat UI (streamed responses) via `@ai-sdk/react` `useChat`
 - **Index-driven retrieval** (per Karpathy wiki pattern): LLM reads `index.md` → picks pages → reads full page content via tool-use → answers with citations. No embeddings, no hybrid search.
-- Claude Sonnet 4.6 for answering (with citations)
-- Citations UI: inline [1][2] linking to wiki pages
-- Session persistence + history
-- Cost cap per org (Haiku fallback for non-complex queries)
+- Gemini models via Vercel AI SDK for answering (with citations)
+- Citations UI: inline `[1][2]` linking to wiki pages
+- Session persistence + history (Drizzle, `requireOrg()`-guarded)
+- Cost cap per org (Flash Lite fallback for routine questions, Flash for multi-hop / regulatory interpretation)
+
+## Model Routing
+| Heuristic | Model |
+|---|---|
+| Single-hop lookup (< 15 words, no "because"/"why"/regulation cite) | `gemini-3.1-flash-lite-preview` |
+| Multi-hop, regulatory interpretation, or follow-up with prior context | `gemini-3-flash-preview` |
+| Escalation: Flash Lite returned "I don't know" but index had candidates | retry with `gemini-3-flash-preview` |
+
+Routing logic lives in `src/lib/chat/model-router.ts`; can be swapped for an LLM-based classifier later.
 
 ## Related Files
+
 **Create:**
-- `supabase/migrations/0007_chat.sql`
-- `src/lib/chat/wiki-tools.ts` — tool-use definitions: `read_wiki_index()`, `read_wiki_page(slug)`, `list_wiki_pages(category)`
+- `src/lib/db/schema/chat.ts` — Drizzle `chat_sessions` + `chat_messages`
+- `drizzle/migrations/0006_chat.sql` — generated
+- `src/lib/chat/wiki-tools.ts` — Vercel AI SDK tool definitions
 - `src/lib/chat/citation-formatter.ts`
-- `src/lib/chat/chat-agent.ts` — Claude pipeline with tool-use loop
+- `src/lib/chat/chat-agent.ts` — `streamText` pipeline wrapping tool-use loop
+- `src/lib/chat/model-router.ts` — heuristic routing
+- `src/lib/chat/pricing.ts` — Gemini price table (shared with extraction? extract → separate if collides)
 - `src/app/(app)/chat/page.tsx` — chat UI
 - `src/app/(app)/chat/[sessionId]/page.tsx` — session view
-- `src/app/api/chat/route.ts` — SSE streaming endpoint
+- `src/app/api/chat/route.ts` — streaming endpoint (returns `result.toDataStreamResponse()`)
+- `src/app/api/wiki/promote/route.ts` — admin-only, rewrites a chat answer into a `topics/*.md` wiki page (calls Phase 05 `promote-from-chat.ts`)
 - `src/components/chat/message-list.tsx`
 - `src/components/chat/message-composer.tsx`
 - `src/components/chat/citation-card.tsx`
 - `src/components/chat/wiki-page-preview.tsx`
+- `src/components/chat/promote-to-wiki-button.tsx` — admin-only, sits on assistant messages
 
-## Data Model (migration 0007)
-```sql
-create table chat_sessions (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
-  user_id uuid not null references auth.users(id),
-  title text,
-  started_at timestamptz default now(),
-  last_message_at timestamptz default now()
-);
+**Delete (prior Claude baseline):**
+- `src/lib/ai/claude-client.ts` usage in chat (already removed in Phase 03)
+- Any `@anthropic-ai/sdk` import in chat files
 
-create table chat_messages (
-  id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references chat_sessions(id) on delete cascade,
-  role text not null check (role in ('user','assistant','system')),
-  content text not null,
-  citations jsonb default '[]',         -- [{wiki_slug, title}]
-  model text,
-  input_tokens int,
-  output_tokens int,
-  cost_usd numeric(10,4),
-  created_at timestamptz default now()
-);
-create index on chat_messages(session_id, created_at);
+## Data Model (Drizzle — `src/lib/db/schema/chat.ts`)
+```ts
+export const chatSessions = pgTable('chat_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title'),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  lastMessageAt: timestamp('last_message_at').defaultNow().notNull(),
+}, (t) => ({ orgIdx: index().on(t.orgId, t.lastMessageAt) }));
 
-alter table chat_sessions enable row level security;
-alter table chat_messages enable row level security;
-create policy "own sessions" on chat_sessions
-  using (org_id = (select org_id from users where supabase_auth_id = auth.uid()));
-create policy "own messages" on chat_messages
-  using (exists(select 1 from chat_sessions where id = session_id and org_id = (select org_id from users where supabase_auth_id = auth.uid())));
+export const chatRole = pgEnum('chat_role', ['user', 'assistant', 'system', 'tool']);
+
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').notNull().references(() => chatSessions.id, { onDelete: 'cascade' }),
+  role: chatRole('role').notNull(),
+  content: text('content').notNull(),
+  toolCalls: jsonb('tool_calls'),                  // Vercel AI SDK tool call payload
+  citations: jsonb('citations').$type<Citation[]>().default([]).notNull(),
+  model: text('model'),                            // "gemini-3.1-flash-lite-preview" | "gemini-3-flash-preview"
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  costUsd: numeric('cost_usd', { precision: 10, scale: 4 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({ sessionIdx: index().on(t.sessionId, t.createdAt) }));
 ```
 
+All queries filter by `requireOrg()`'s `orgId`; no RLS.
+
+## Wiki Tool Definitions (`src/lib/chat/wiki-tools.ts`)
+```ts
+import { tool } from 'ai';
+import { z } from 'zod';
+
+export const wikiTools = {
+  read_wiki_index: tool({
+    description: 'Read the full wiki index (catalog of all wiki pages grouped by category). Call this first on every question.',
+    parameters: z.object({}),
+    execute: async () => ({ indexMd: await getWikiIndexMd() }),
+  }),
+  read_wiki_page: tool({
+    description: 'Read the full content of a wiki page by slug. Use after choosing relevant pages from the index.',
+    parameters: z.object({ slug: z.string() }),
+    execute: async ({ slug }) => ({ page: await getWikiPageBySlug(slug) }),
+  }),
+  list_wiki_pages: tool({
+    description: 'List wiki pages in a category. Fallback browsing when the index is ambiguous.',
+    parameters: z.object({ category: z.string() }),
+    execute: async ({ category }) => ({ pages: await listWikiPagesByCategory(category) }),
+  }),
+};
+```
+
+## Chat Agent (`src/lib/chat/chat-agent.ts`)
+```ts
+import { streamText } from 'ai';
+import { wikiTools } from './wiki-tools';
+import { pickModel } from './model-router';
+
+export async function runChat({ messages, orgId, userId }: RunChatInput) {
+  const model = pickModel(messages);
+
+  const result = await streamText({
+    model,
+    system: CHAT_SYSTEM_PROMPT,                    // stable → benefits from Gemini context caching
+    messages,
+    tools: wikiTools,
+    maxSteps: 5,                                   // bound tool-use loop
+    onFinish: async ({ usage, finishReason, toolCalls, text }) => {
+      await persistAssistantMessage({
+        orgId, userId, content: text, usage,
+        model: model.modelId, toolCalls,
+        citations: extractCitations(text),
+      });
+    },
+  });
+
+  return result;                                   // route handler returns result.toDataStreamResponse()
+}
+```
+
+**System prompt (excerpt):**
+> You are a Vietnamese chemical compliance assistant. Always call `read_wiki_index` first on any new topic. Answer using ONLY content from wiki pages you have explicitly read via `read_wiki_page`. Cite inline `[n]` referencing wiki slugs, and list citations at the end in the format `[n]: slug/title`. If no relevant page exists, say so plainly — never guess. All regulatory claims MUST cite a page in `regulations/*`.
+
+## Route Handler (`src/app/api/chat/route.ts`)
+```ts
+import { auth } from '@/lib/auth/auth';
+import { requireOrg } from '@/lib/auth/require-org';
+import { runChat } from '@/lib/chat/chat-agent';
+
+export async function POST(req: Request) {
+  const { orgId, userId } = await requireOrg();
+  const { messages, sessionId } = await req.json();
+  await assertSessionBelongsToOrg(sessionId, orgId);
+
+  const result = await runChat({ messages, orgId, userId });
+  return result.toDataStreamResponse();
+}
+```
+
+Client uses `useChat` from `@ai-sdk/react` against `/api/chat`.
+
 ## Implementation Steps
-1. Apply migration 0007
-2. Implement `wiki-tools.ts` — Anthropic tool-use definitions:
-   - `read_wiki_index()` → returns the current `index.md` content
-   - `read_wiki_page(slug: string)` → returns full page content_md + frontmatter
-   - `list_wiki_pages(category: string)` → returns `[{slug, title, one_liner}]` for fallback browsing
-3. Implement `chat-agent.ts` with tool-use agent loop:
-   - **Turn 1:** System prompt + user query. Claude calls `read_wiki_index()` first.
-   - **Turn 2:** Claude picks relevant page slugs from the index → calls `read_wiki_page(slug)` (possibly multiple times, parallel tool calls).
-   - **Turn 3:** Claude synthesizes answer with inline `[1][2]` citations mapped to page slugs.
-   - Bounded loop: max 5 tool-call rounds per user turn (prevent runaway).
-   - System prompt: "You are a VN chemical compliance assistant. Always read the wiki index first. Answer using ONLY content from wiki pages you have read. Cite inline `[n]` referencing wiki slugs. If no relevant page exists, say so — do not guess. All regulatory claims must cite a `regulations/*` page."
-   - Prompt caching on the system prompt + index content (90% of tokens, stable).
-   - Model routing: Haiku for single-hop questions (detected by keyword heuristic), Sonnet for multi-hop or regulatory interpretation
-   - Stream response + parse citations from final assistant message
-4. Build chat UI:
+1. Add Drizzle schema for `chat_sessions` + `chat_messages`. `drizzle-kit generate` → migration 0006. Apply.
+2. Install deps: `pnpm add ai @ai-sdk/google @ai-sdk/react` (reuse from Phase 03).
+3. Implement `wiki-tools.ts` — three tool definitions pointing at Phase 05 wiki loaders.
+4. Implement `model-router.ts` — heuristic classifier returning `geminiFlashLite` or `geminiFlash` (reuse clients from `src/lib/ai/gemini-client.ts`).
+5. Implement `chat-agent.ts` with `streamText` + `tools: wikiTools` + `maxSteps: 5`. System prompt stable for context caching.
+6. Implement `/api/chat/route.ts` — `requireOrg()`, session ownership check, delegate to `runChat`, return `toDataStreamResponse()`.
+7. Build chat UI with `useChat({ api: '/api/chat' })`:
    - Message list with user/assistant bubbles
+   - Tool-call steps rendered inline as collapsed "Reading wiki…" indicators (via `message.parts`)
    - Inline citation chips `[1]` → click opens wiki page in side drawer
    - Composer with send on enter, shift-enter new line
-   - Session sidebar with history
-5. Implement SSE streaming endpoint via `src/app/api/chat/route.ts`
-6. Cost metering: sum `cost_usd` per session, enforce monthly cap per plan tier
-7. Seed 20 canonical test questions with expected answers (brainstorm §10 metric: 80% accuracy)
-8. Benchmark: run 20 test questions → grade against EHS consultant baseline → iterate prompts
+   - Session sidebar with history (Drizzle query by `orgId`)
+8. Implement `onFinish` persister: insert assistant `chat_messages` row with token counts + cost + citations JSON. Also append a `QUERY {iso-date} session=<id> pages-cited=<n>` line to `log.md` via Phase 05's `log-writer.ts` — this closes the Karpathy wiki audit loop (query events visible to the nightly linter).
+9. **Promote-to-wiki action (Karpathy compounding loop):** Add an admin-only button on any assistant message → calls `POST /api/wiki/promote` with `{ messageId }` → server action loads the message + cited pages, uses Gemini (`generateText`) to rewrite the answer as a `topics/<slug>.md` wiki page with proper frontmatter + cross-refs → `requireAdmin()` gate → re-runs `index-builder` → appends `PROMOTE {iso-date} topic=<slug> from-message=<id>` to `log.md`. This is the mechanism that turns valuable chat answers into persistent wiki knowledge.
+10. Cost metering: sum `cost_usd` per session; dashboard widget. No hard cap at MVP (free tier only, no Stripe) — log a warning if org exceeds soft quota (100 messages/day).
+11. Seed 20 canonical test questions with expected answers.
+12. Benchmark: run 20 test questions → EHS consultant grades → iterate prompts to hit ≥80% accuracy.
 
 ## Todo List
-- [ ] Migration 0007
-- [ ] Wiki tool-use definitions (`read_wiki_index`, `read_wiki_page`, `list_wiki_pages`)
-- [ ] Chat agent with tool-use loop (max 5 rounds)
-- [ ] Prompt caching on system prompt + index
-- [ ] SSE streaming endpoint
-- [ ] Chat UI (streamed, session sidebar)
+- [ ] Drizzle schema + migration 0006 (`chat_sessions`, `chat_messages`)
+- [ ] `wiki-tools.ts` with three `tool()` definitions
+- [ ] `model-router.ts` heuristic
+- [ ] `chat-agent.ts` with `streamText` + `maxSteps: 5`
+- [ ] System prompt stable for Gemini context caching
+- [ ] `/api/chat` route handler with `requireOrg()` + session ownership check
+- [ ] Chat UI using `@ai-sdk/react` `useChat`
+- [ ] Tool-call step rendering (reading-wiki indicators)
 - [ ] Citation drawer opening wiki page
-- [ ] Model routing (Haiku vs Sonnet)
-- [ ] Cost cap enforcement
+- [ ] `onFinish` persister for assistant messages + `QUERY` log.md append
+- [ ] `/api/wiki/promote` route (admin-gated) → `topics/*.md` page via Phase 05 `promote-from-chat.ts`
+- [ ] Promote button on admin-visible assistant messages (hidden for non-admins)
+- [ ] Soft quota warning (free tier — 100 msgs/day/org)
 - [ ] 20-question benchmark set
 - [ ] EHS consultant scoring
 - [ ] `pnpm build` green
@@ -116,17 +207,19 @@ create policy "own messages" on chat_messages
 - Every assistant message with a regulatory claim has ≥1 citation
 - Streaming responds within 2s to first token
 - Session history persists across logout
-- Haiku routing reduces avg cost by ≥40% vs Sonnet-only
+- Flash Lite routing reduces avg cost by ≥50% vs Flash-only
+- Zero Anthropic references in chat code
 
 ## Risk Assessment
-- **Risk:** Hallucinated regulatory answers. **Mitigation:** Strict "ONLY from sources" system prompt + citation requirement + refuse-if-none-found behavior.
-- **Risk:** Wiki coverage gaps → "I don't know" too often. **Mitigation:** Track unanswered questions in `wiki_lint_findings` → seed more pages in next iteration.
-- **Risk:** Query spike costs. **Mitigation:** Per-plan monthly cap surfaced in dashboard.
+- **Risk:** Hallucinated regulatory answers. **Mitigation:** Strict "ONLY from sources" system prompt + citation requirement + refuse-if-none-found behavior + stop condition that forbids regulatory claims without a `regulations/*` citation.
+- **Risk:** Wiki coverage gaps → "I don't know" too often. **Mitigation:** Track unanswered questions in `wiki_lint_findings` (Phase 05) → seed more pages in next iteration.
+- **Risk:** Query spike costs (no Stripe entitlements at MVP). **Mitigation:** Per-org soft quota + per-request `maxSteps: 5` cap + Flash Lite routing.
+- **Risk:** Gemini tool-use reliability on multi-step chains. **Mitigation:** Bound with `maxSteps: 5`; on repeated same-tool calls, surface fallback message.
 
 ## Security Considerations
-- Chat messages contain potentially sensitive workplace chemical info — RLS enforced
-- Anthropic API key server-side only
-- Do not log chat content to third-party observability (Sentry) — only metadata
+- Chat messages may contain sensitive workplace chemical info — `requireOrg()` guard on every query; session ownership check before streaming.
+- `GOOGLE_GENERATIVE_AI_API_KEY` server-side only.
+- Do not log chat content to third-party observability (Sentry) — only metadata (model, tokens, duration, citation count).
 
 ## Next Steps
-→ Phase 08: Multi-tenant org + roles
+→ Phase 08: Organization Profile + Access Settings

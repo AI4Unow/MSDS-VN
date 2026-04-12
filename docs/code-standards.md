@@ -1,8 +1,8 @@
 # Code Standards & Guidelines
 
 ## Tech Stack Lock
-- **Next.js 15 App Router**: Avoid Pages router entirely. Utilize React Server Components where possible for performance, and Client Components strictly where interactivity is needed.
-- **Supabase**: Use Supabase SSR auth patterns for Next.js 15. All tenant separation must be strictly enforced at the database level using Row Level Security (RLS).
+- **Next.js 16 App Router**: Avoid Pages router entirely. Utilize React Server Components where possible for performance, and Client Components strictly where interactivity is needed.
+- **Supabase**: Use Supabase SSR auth patterns for Next.js 16. All tenant separation must be strictly enforced at the database level using Row Level Security (RLS).
 - **TypeScript**: Strict mode enabled. Define explicit interfaces for all database rows and API boundaries.
 
 ## File Organization Requirements
