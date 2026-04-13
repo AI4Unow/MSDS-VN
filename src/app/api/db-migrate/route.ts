@@ -1,4 +1,4 @@
-import { sql, Pool } from "@vercel/postgres";
+import { sql, VercelPool } from "@vercel/postgres";
 import { NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -34,7 +34,7 @@ export async function POST() {
       baseStatements = baseMigrationSql.split("--> statement-breakpoint");
 
       // Pool.query() accepts raw SQL strings — sql`` tag would parameterize DDL as $1
-      const pool = new Pool();
+      const pool = new VercelPool({ connectionString: process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING });
       try {
         for (const statement of baseStatements) {
           const trimmed = statement.trim();
@@ -107,7 +107,7 @@ export async function POST() {
       statements = wikiMigrationSql.split("--> statement-breakpoint");
 
       // Pool.query() accepts raw SQL strings — sql`` tag would parameterize DDL as $1
-      const pool = new Pool();
+      const pool = new VercelPool({ connectionString: process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING });
       try {
         for (const statement of statements) {
           const trimmed = statement.trim();

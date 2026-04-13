@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { join, dirname } from "path";
 import { execSync } from "child_process";
-import { sql, Pool } from "@vercel/postgres";
+import { sql, VercelPool } from "@vercel/postgres";
 
 const __filename = new URL(import.meta.url).pathname;
 const __dirname = dirname(__filename);
@@ -68,7 +68,7 @@ async function main() {
         );
         const statements = migrationSql.split("--> statement-breakpoint");
         // Pool.query() accepts raw SQL strings — sql`` tag would parameterize DDL as $1
-        const pool = new Pool();
+        const pool = new VercelPool({ connectionString: process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING });
         try {
           for (const stmt of statements) {
             const trimmed = stmt.trim();
