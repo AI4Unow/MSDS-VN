@@ -1,7 +1,12 @@
 import { requireOrg } from "@/lib/auth/require-org";
 import { db } from "@/lib/db/client";
 import { wikiPages } from "@/lib/db/schema";
+import { inArray } from "drizzle-orm";
+import { not } from "drizzle-orm";
 import { BookOpen } from "@phosphor-icons/react/dist/ssr";
+
+// Internal meta pages that should not appear in the public wiki listing
+const HIDDEN_SLUGS = ["index", "log", "schema"];
 
 export default async function WikiPage() {
   await requireOrg();
@@ -9,6 +14,7 @@ export default async function WikiPage() {
   const pages = await db
     .select()
     .from(wikiPages)
+    .where(not(inArray(wikiPages.slug, HIDDEN_SLUGS)))
     .orderBy(wikiPages.category, wikiPages.title)
     .limit(100);
 
@@ -51,14 +57,14 @@ export default async function WikiPage() {
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {(items as any[]).map((page: any) => (
                 <a
-                  key={page.id}
+                  key={page.slug}
                   href={`/wiki/${page.slug}`}
                   className="rounded-lg border border-border bg-card p-4 hover:bg-muted/50 transition-colors"
                 >
                   <h3 className="text-sm font-medium">{page.title}</h3>
-                  {page.tags && (
+                  {page.oneLiner && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {page.tags}
+                      {page.oneLiner}
                     </p>
                   )}
                 </a>

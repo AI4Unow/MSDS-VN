@@ -33,6 +33,9 @@ const section3 = z.object({
       casNumber: withConf(z.string().optional()),
       concentration: withConf(z.string().optional()),
       percentageRange: withConf(z.string().optional()),
+      // Per-component hazard data (present when SDS provides individual ingredient hazards)
+      hazardStatements: z.array(withConf(z.string())).optional(),
+      ghsPictograms: z.array(withConf(z.string())).optional(),
     })
   ),
 });

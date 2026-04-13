@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:push": "tsx scripts/db-push.ts",
+    "db:studio": "drizzle-kit studio",
+    "inngest:dev": "inngest dev"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.62",
@@ -56,6 +57,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "inngest-cli": "^1.17.9",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
