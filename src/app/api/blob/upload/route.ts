@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const MAX_PDF_SIZE = 25 * 1024 * 1024; // 25MB
 
 export async function POST(request: Request) {
-  const orgId = "dev-org";
+  const orgId = "00000000-0000-0000-0000-000000000001";
 
   // Validate Content-Length header before processing
   const contentLength = request.headers.get("content-length");
