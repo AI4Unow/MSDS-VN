@@ -1,11 +1,26 @@
 import Link from "next/link";
 import { FileText, Flask, ChatCircle, Warning } from "@phosphor-icons/react/dist/ssr";
+import { db } from "@/lib/db/client";
+import { sdsDocuments, chemicals } from "@/lib/db/schema";
+import { requireOrg } from "@/lib/auth/require-org";
+import { eq, count } from "drizzle-orm";
 
 export default async function DashboardPage() {
+  const { orgId } = await requireOrg();
+
+  const [sdsCount] = await db
+    .select({ count: count() })
+    .from(sdsDocuments)
+    .where(eq(sdsDocuments.orgId, orgId));
+
+  const [chemCount] = await db
+    .select({ count: count() })
+    .from(chemicals)
+    .where(eq(chemicals.orgId, orgId));
 
   const stats = [
-    { label: "Tài liệu SDS", labelEn: "SDS Documents", value: "0", icon: FileText, href: "/sds" },
-    { label: "Hóa chất", labelEn: "Chemicals", value: "0", icon: Flask, href: "/chemicals" },
+    { label: "Tài liệu SDS", labelEn: "SDS Documents", value: String(sdsCount?.count ?? 0), icon: FileText, href: "/sds" },
+    { label: "Hóa chất", labelEn: "Chemicals", value: String(chemCount?.count ?? 0), icon: Flask, href: "/chemicals" },
     { label: "Phiếu an toàn", labelEn: "Safety Cards", value: "0", icon: Warning, href: "/sds" },
     { label: "Câu hỏi tuân thủ", labelEn: "Chat Queries", value: "0", icon: ChatCircle, href: "/chat" },
   ];
