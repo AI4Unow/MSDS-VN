@@ -18,6 +18,7 @@ MSDS/
 │   │   │   │   └── [id]/                   # SDS detail pages
 │   │   │   ├── chemicals/page.tsx          # Chemicals master table
 │   │   │   ├── wiki/page.tsx               # Wiki browser
+│   │   │   ├── wiki/[...slug]/page.tsx     # Wiki detail pages
 │   │   │   ├── chat/page.tsx               # Compliance chat
 │   │   │   ├── settings/                   # Organization settings
 │   │   │   │   ├── org/page.tsx            # Org profile
@@ -29,8 +30,8 @@ MSDS/
 │   │   │   ├── page.tsx                    # Landing page
 │   │   │   ├── pricing/page.tsx            # Pricing page
 │   │   │   └── waitlist/page.tsx           # Waitlist signup
-│   │   ├── (public)/
-│   │   │   └── card/[token]/page.tsx       # Public safety card view
+│   │   ├── public/
+│   │   │   └── card/[token]/page.tsx       # Public safety card view (/public/card/:token)
 │   │   ├── api/
 │   │   │   ├── auth/[...nextauth]/route.ts # Auth.js v5 handler
 │   │   │   ├── chat/route.ts               # Compliance chat endpoint
@@ -168,13 +169,13 @@ MSDS/
 - Markdown-based regulatory wiki
 - Index-driven retrieval (no embeddings)
 - Nightly lint cron with index drift detection
-- Wiki browser + admin editor
+- Wiki browser + detail pages
 
 ### Phase 06: Safety Card Generator
 - MOIT-compliant SDS PDF generation
 - react-pdf template (MOIT Appendix I layout)
 - QR code generation
-- Public mobile-friendly views
+- Public mobile-friendly views on `/public/card/:token`
 
 ### Phase 07: Compliance Chat
 - Vercel AI SDK v6 with useChat hook
