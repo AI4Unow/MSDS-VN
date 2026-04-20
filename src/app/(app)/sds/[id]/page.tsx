@@ -61,12 +61,12 @@ export default async function SdsDetailPage({
       {extraction?.sections ? (
         <SdsDetailClient
           sections={extraction.sections as Record<string, Record<string, unknown>>}
-          blobUrl={doc.blobUrl}
+          blobUrl={`/api/sds/${id}/pdf`}
         />
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
           <iframe
-            src={doc.blobUrl}
+            src={`/api/sds/${id}/pdf`}
             className="w-full h-[70vh]"
             title={doc.filename}
           />

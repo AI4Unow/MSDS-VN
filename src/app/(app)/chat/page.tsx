@@ -8,10 +8,11 @@ import {
   BookOpen,
   ChatCircle,
 } from "@phosphor-icons/react/dist/ssr";
+import { ChatMarkdown } from "@/components/chat/chat-markdown";
 
 export default function ChatPage() {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
 
@@ -60,13 +61,27 @@ export default function ChatPage() {
             }`}
           >
             <div className="whitespace-pre-wrap">
-              {msg.parts.map((part, i) => {
-                if (part.type === "text") return part.text;
-                return null;
-              })}
+              {msg.role === "assistant" ? (
+                <ChatMarkdown
+                  content={msg.parts
+                    .filter((part) => part.type === "text")
+                    .map((part) => part.text)
+                    .join("")}
+                />
+              ) : (
+                msg.parts.map((part) => {
+                  if (part.type === "text") return part.text;
+                  return null;
+                })
+              )}
             </div>
           </div>
         ))}
+        {error && (
+          <div className="mr-auto rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error.message || "Chatbot không trả lời được lúc này. Thử gửi lại sau ít phút."}
+          </div>
+        )}
         {isLoading && (
           <div className="mr-auto rounded-lg px-4 py-3 bg-card border border-border text-sm text-muted-foreground">
             Đang suy nghĩ...

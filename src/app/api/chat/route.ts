@@ -46,9 +46,19 @@ export async function POST(req: Request) {
     );
   }
 
-  // Convert UI messages to model messages
-  const modelMessages = await convertToModelMessages(messages);
+  try {
+    // Convert UI messages to model messages
+    const modelMessages = await convertToModelMessages(messages);
 
-  const result = await runChat({ messages: modelMessages });
-  return result.toUIMessageStreamResponse();
+    const result = await runChat({ messages: modelMessages });
+    return result.toUIMessageStreamResponse();
+  } catch (err) {
+    console.error("[chat] Stream error:", err);
+    const message =
+      err instanceof Error ? err.message : "Unknown chat error";
+    return Response.json(
+      { error: `Chat failed: ${message}` },
+      { status: 500 },
+    );
+  }
 }
