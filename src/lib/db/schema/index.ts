@@ -4,7 +4,6 @@ export { auditLog } from "./audit-log";
 export { sdsDocuments, sdsStatus } from "./sds-documents";
 export { sdsExtractions, reviewStatus, reviewQueue } from "./sds-extractions";
 export { chemicals } from "./chemicals";
-export { wikiPages } from "./wiki-pages";
 export { safetyCards, cardAccessMode } from "./safety-cards";
 export { chatSessions, chatMessages, chatRole } from "./chat";
 export { waitlistSignups } from "./waitlist";

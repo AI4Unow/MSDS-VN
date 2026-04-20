@@ -1,35 +1,30 @@
-import { db } from "@/lib/db/client";
-import { wikiPages } from "@/lib/db/schema";
-import { sql } from "drizzle-orm";
+import { put } from "@vercel/blob";
+import { randomUUID } from "crypto";
 
-export async function appendLogEntry(prefix: string, data: Record<string, unknown>) {
+const WIKI_PREFIX = "wiki/";
+
+/**
+ * Append a log entry as an individual Blob entry.
+ * Each log entry is its own file: wiki/log/YYYY-MM-DD/UUID-PREFIX.md
+ * UUID suffix prevents collision when concurrent handlers write in the same millisecond.
+ */
+export async function appendLogEntry(
+  prefix: string,
+  data: Record<string, unknown>,
+) {
   const isoDate = new Date().toISOString();
+  const dateKey = isoDate.slice(0, 10);
+  const uid = randomUUID().slice(0, 8);
   const dataStr = Object.entries(data)
     .map(([k, v]) => `${k}=${v}`)
     .join(" ");
-  const logEntry = `${prefix} ${isoDate} ${dataStr}\n`;
+  const logEntry = `${prefix} ${isoDate} ${dataStr}`;
 
-  // Use atomic SQL update to append without race condition
-  await db
-    .insert(wikiPages)
-    .values({
-      slug: "log",
-      category: "meta",
-      title: "Wiki Log",
-      frontmatter: { type: "meta" },
-      contentMd: logEntry,
-      citedBy: [],
-      sourceUrls: [],
-      version: 1,
-      updatedBy: "llm",
-    })
-    .onConflictDoUpdate({
-      target: wikiPages.slug,
-      set: {
-        contentMd: sql`${logEntry} || ${wikiPages.contentMd}`,
-        updatedAt: new Date(),
-      },
-    });
+  const logSlug = `log/${dateKey}/${uid}-${prefix}`;
+  await put(`${WIKI_PREFIX}${logSlug}.md`, logEntry, {
+    access: "public",
+    addRandomSuffix: false,
+  });
 }
 
 export const LOG_PREFIXES = {

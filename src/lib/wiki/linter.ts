@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { db } from "@/lib/db/client";
-import { wikiPages } from "@/lib/db/schema";
+import { listWikiPages, readWikiPage } from "./blob-store";
+import { parseWikiPage } from "./frontmatter-parser";
 
 export interface LintFinding {
   type: "orphan" | "dangling_xref" | "stale" | "contradiction";
@@ -8,41 +7,62 @@ export interface LintFinding {
   message: string;
 }
 
-export async function lintWiki() {
+export async function lintWiki(): Promise<LintFinding[]> {
   const findings: LintFinding[] = [];
-  const pages = await db.select().from(wikiPages);
+  const allSlugs = await listWikiPages();
+  const contentSlugs = allSlugs.filter(
+    (s) =>
+      !s.startsWith("index/") &&
+      s !== "index" &&
+      s !== "log" &&
+      !s.startsWith("log/"),
+  );
 
-  // Check for orphans (no inbound citations)
-  // Only run if at least one page has non-empty citedBy — otherwise every page
-  // is an orphan and the check produces only noise
-  const anyCitations = pages.some(p => p.citedBy && p.citedBy.length > 0);
-  const allSlugs = new Set(pages.map(p => p.slug));
-  if (anyCitations) {
-    for (const page of pages) {
-      if (page.slug === "index" || page.slug === "log" || page.slug === "schema") continue;
-
-      const citedByCount = page.citedBy?.length || 0;
-      if (citedByCount === 0) {
-        findings.push({
-          type: "orphan",
-          page: page.slug,
-          message: "Page has no inbound citations",
-        });
-      }
-    }
+  const allSlugSet = new Set(contentSlugs);
+  const BATCH_SIZE = 20;
+  const pages: Array<{ slug: string; title: string; category: string; oneLiner: string | null; crossRefs: string[]; citedBy: Array<{ page: string; count: number }>; content: string; frontmatter: Record<string, unknown> } | null> = [];
+  for (let i = 0; i < contentSlugs.length; i += BATCH_SIZE) {
+    const batch = contentSlugs.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (slug) => {
+        const raw = await readWikiPage(slug);
+        return raw ? { slug, ...parseWikiPage(raw) } : null;
+      }),
+    );
+    pages.push(...batchResults);
   }
 
+  const validPages = pages.filter(
+    Boolean,
+  ) as NonNullable<(typeof pages)[number]>[];
+
   // Check for dangling cross-references
-  for (const page of pages) {
-    const crossRefs = (page.frontmatter as any)?.cross_refs || [];
-    for (const ref of crossRefs) {
-      if (!allSlugs.has(ref)) {
+  for (const page of validPages) {
+    for (const ref of page.crossRefs) {
+      if (!allSlugSet.has(ref)) {
         findings.push({
           type: "dangling_xref",
           page: page.slug,
           message: `Cross-reference to non-existent page: ${ref}`,
         });
       }
+    }
+  }
+
+  // Check for orphans (pages not referenced by any other page)
+  const referenced = new Set<string>();
+  for (const page of validPages) {
+    for (const ref of page.crossRefs) referenced.add(ref);
+    for (const cite of page.citedBy) referenced.add(cite.page);
+  }
+
+  for (const page of validPages) {
+    if (!referenced.has(page.slug)) {
+      findings.push({
+        type: "orphan",
+        page: page.slug,
+        message: "Page has no inbound references",
+      });
     }
   }
 

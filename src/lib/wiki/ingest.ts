@@ -1,9 +1,18 @@
-import { db } from "@/lib/db/client";
-import { wikiPages } from "@/lib/db/schema";
-import { sql } from "drizzle-orm";
-import { rebuildWikiIndex } from "./index-builder";
-import { appendLogEntry, LOG_PREFIXES } from "./log-writer";
+import { writeWikiPage, readWikiPage } from "./blob-store";
+import { parseWikiPage } from "./frontmatter-parser";
 
+/**
+ * Upsert a wiki page. Merges with existing frontmatter to preserve incremental fields.
+ *
+ * Concurrency note: If two Inngest handlers for the same CAS run concurrently
+ * (e.g., separate SDS uploads for the same chemical), both will read-merge-write
+ * and last-writer-wins. This is acceptable at MVP scale because:
+ * 1. Chemical page content is deterministic (regenerated from SDS extraction data)
+ * 2. Inngest `step.run` serializes steps within a single function attempt
+ * 3. Cross-extraction races are rare and converge on re-ingest
+ * If strict single-writer is needed, serialize via a per-CAS Inngest mutex or
+ * move canonical state to Postgres with CAS/optimistic concurrency.
+ */
 export async function upsertWikiPage(params: {
   slug: string;
   category: string;
@@ -13,42 +22,42 @@ export async function upsertWikiPage(params: {
   contentMd: string;
   sourceUrls?: string[];
 }) {
-  const { slug, category, title, oneLiner, frontmatter, contentMd, sourceUrls } = params;
+  const { slug, category, title, oneLiner, frontmatter, contentMd, sourceUrls } =
+    params;
 
-  await db
-    .insert(wikiPages)
-    .values({
-      slug,
-      category,
-      title,
-      oneLiner: oneLiner || null,
-      frontmatter,
-      contentMd,
-      citedBy: [],
-      sourceUrls: sourceUrls || [],
-      version: 1,
-      updatedBy: "llm",
-    })
-    .onConflictDoUpdate({
-      target: wikiPages.slug,
-      set: {
-        title,
-        category,
-        contentMd,
-        frontmatter,
-        oneLiner: oneLiner || null,
-        sourceUrls: sourceUrls || [],
-        updatedBy: "llm",
-        updatedAt: new Date(),
-        version: sql`${wikiPages.version} + 1`,
-      },
-    });
+  // Merge with existing frontmatter to preserve incremental fields (P1-2 fix)
+  const existingRaw = await readWikiPage(slug);
+  const existingFm = existingRaw
+    ? parseWikiPage(existingRaw).frontmatter
+    : {};
+
+  const merged = {
+    ...existingFm,
+    ...frontmatter,
+    category,
+    title,
+    one_liner: oneLiner || existingFm.one_liner || undefined,
+    source_urls: sourceUrls || (existingFm.source_urls as string[]) || [],
+    // Preserve created timestamp from existing page
+    created: (existingFm.created as string) || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const fm = JSON.stringify(merged, null, 2);
+  const fullPage = `---\n${fm}\n---\n\n${contentMd}`;
+  await writeWikiPage(slug, fullPage);
 }
 
 export async function triggerWikiIngest(sdsId: string, casNumber: string) {
-  // Rebuild index (debounced in real implementation)
-  await rebuildWikiIndex();
-  
-  // Append log
-  await appendLogEntry(LOG_PREFIXES.INGEST, { sds: sdsId, cas: casNumber, pages_touched: 1 });
+  const { rebuildHierarchicalIndex } = await import(
+    "./hierarchical-index-builder"
+  );
+  await rebuildHierarchicalIndex();
+
+  const { appendLogEntry, LOG_PREFIXES } = await import("./log-writer");
+  await appendLogEntry(LOG_PREFIXES.INGEST, {
+    sds: sdsId,
+    cas: casNumber,
+    pages_touched: 1,
+  });
 }

@@ -8,7 +8,7 @@ The MSDS Platform employs a modern, serverless architecture focusing on simplici
 - **Styling**: Tailwind CSS v4 + shadcn/ui components + @phosphor-icons/react
 - **Database**: Vercel Postgres (`@vercel/postgres` 0.10.0 + `drizzle-orm` 0.45.2) — *Currently fully mocked via Proxy in `src/lib/db/client.ts` to allow local/public build without configuring cloud DB.*
 - **Authentication**: Auth.js v5 removed/disabled for MVP to allow all routes to be publicly accessible.
-- **Storage**: Vercel Blob (`@vercel/blob` 2.3.3) for raw PDF storage and generated VI Safety Cards
+- **Storage**: Vercel Blob (`@vercel/blob` 2.3.3) for raw PDF storage, generated VI Safety Cards, and wiki pages (replaces Postgres `wiki_pages` table)
 - **Background Jobs**: Inngest 4.2.1 for async tasks (SDS extraction, chemical enrichment, safety card generation)
 - **AI/LLM**: Vercel AI SDK v6 (`ai` 6.0.158 + `@ai-sdk/google` 3.0.62) with Google Gemini (gemini-3-flash-preview / gemini-3.1-flash-lite-preview)
 - **PDF Generation**: @react-pdf/renderer 4.4.1 for MOIT-compliant safety cards
@@ -77,11 +77,16 @@ return toUIMessageStreamResponse(result); // Stream to client
 ### 3. Compliance Chat (Vercel AI SDK v6 + Index-Driven Retrieval)
 - Built on Vercel AI SDK v6 with `useChat` hook on client, `streamText` on server.
 - Server-side chat handler uses `convertToModelMessages()` to transform UI messages to `ModelMessage[]`.
-- Gemini reads `index.md` → picks relevant wiki page slugs via tool-use → reads full page content → answers with inline citations.
+- Gemini reads root `index` → drills into category sub-indexes via `read_sub_index` → reads full page content via `read_wiki_page` → answers with inline citations.
+- 3-hop retrieval protocol: root index → sub-index → page. `stepCountIs(7)` to allow extra navigation.
 - Tools defined with `inputSchema` (Zod), not deprecated `parameters`.
 - Response streamed via `toUIMessageStreamResponse()` for real-time client updates.
-- Model routing: Gemini Flash for simple queries, Gemini Pro for complex multi-step reasoning.
-- No embeddings or vector search in MVP. Retrieval is entirely LLM-driven against the curated index.
+- Chat model: Gemini 3.1 Flash-Lite Preview pinned for predictable latency/cost in the compliance chatbot.
+- No embeddings or vector search in MVP. Retrieval is entirely LLM-driven against hierarchical indexes.
+- Wiki pages stored in Vercel Blob (not Postgres). Each page is a `.md` file with JSON frontmatter under `wiki/` prefix.
+- Blob storage modules: `blob-store.ts` (read/write/list/delete), `frontmatter-parser.ts` (parse YAML/JSON frontmatter), `hierarchical-index-builder.ts` (rebuild root + category sub-indexes).
+- Daily log files stored as `log/YYYY-MM-DD.md` in Blob (replaces single `log` page).
+- Linter reads from Blob instead of DB; Inngest functions read/write wiki pages via Blob API.
 
 ### 4. Authentication Flow (Removed for MVP)
 - Auth.js v5 was initially implemented but has been completely removed/bypassed for the MVP phase.

@@ -18,6 +18,15 @@
 - Use Drizzle schema definitions in `/src/lib/db/schema/` for type-safe queries.
 - Prefer Drizzle query builder over raw SQL for maintainability and type safety.
 
+## Wiki Storage (Vercel Blob)
+- Wiki pages stored as `.md` files in Vercel Blob under `wiki/` prefix (e.g., `wiki/chemical-acetone.md`).
+- Each page includes JSON frontmatter with metadata: `title`, `category`, `one_liner`, `cross_refs`, `cited_by`.
+- Use `blob-store.ts` for all Blob operations: `readWikiPage()`, `writeWikiPage()`, `listWikiPages()`, `deleteWikiPage()`.
+- Hierarchical indexes built via `hierarchical-index-builder.ts`: root `index` → category sub-indexes (`index/{category}`) → individual pages.
+- Parse frontmatter with `frontmatter-parser.ts` to extract metadata and content separately.
+- Daily logs stored as `log/YYYY-MM-DD.md` in Blob (replaces single `log` page).
+- URL cache in `blob-store.ts` expires every 60 seconds to balance freshness vs API calls.
+
 ## Compliance
 - All LLM prompt engineering involving legal terms MUST adhere to the terminology definitions laid out in Vietnam Circular 01/2026/TT-BCT and Law on Chemicals 2025. Do NOT use legacy terms from 2007 laws.
 - MOIT glossary maintained in `/src/lib/safety-card/moit-glossary.ts` for consistent terminology.
@@ -36,5 +45,5 @@
 - **Message conversion**: Always use `convertToModelMessages()` to transform UI messages to `ModelMessage[]`.
 - **Tool definitions**: Use `inputSchema` (Zod) for tool parameters, not deprecated `parameters`.
 - **Response streaming**: Use `toUIMessageStreamResponse()` to stream responses to client.
-- **Model routing**: Implement cost-aware routing (Flash for simple, Pro for complex) in `/src/lib/chat/model-router.ts`.
+- **Compliance chat model**: Pin `/src/lib/chat/model-router.ts` to `gemini-3.1-flash-lite-preview` unless a documented product requirement explicitly changes that behavior.
 - **Pricing tracking**: Log token usage and costs per request for billing transparency.

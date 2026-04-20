@@ -41,3 +41,8 @@ yarn-error.log*
 next-env.d.ts
 repomix-output.xml
 .env*.local
+
+# OpenKB
+openkb-regulations/.openkb/
+openkb-regulations/wiki/sources/
+.venv_openkb/

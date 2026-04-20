@@ -7,7 +7,7 @@ const MAX_MESSAGES = 50;
 const MAX_CONTENT_LENGTH = 10_000;
 
 export async function POST(req: Request) {
-  const { orgId, userId } = await requireOrg();
+  const { userId } = await requireOrg();
   
   // Rate limit: 10 requests per minute per user
   const rateLimitResult = rateLimit(`chat:${userId}`, 10, 60_000);
@@ -49,6 +49,6 @@ export async function POST(req: Request) {
   // Convert UI messages to model messages
   const modelMessages = await convertToModelMessages(messages);
 
-  const result = await runChat({ messages: modelMessages, orgId, userId });
+  const result = await runChat({ messages: modelMessages });
   return result.toUIMessageStreamResponse();
 }

@@ -1,39 +1,57 @@
 import { requireOrg } from "@/lib/auth/require-org";
-import { db } from "@/lib/db/client";
-import { wikiPages } from "@/lib/db/schema";
-import { inArray } from "drizzle-orm";
-import { not } from "drizzle-orm";
+import { listWikiPages, readWikiPage } from "@/lib/wiki/blob-store";
+import { parseWikiPage } from "@/lib/wiki/frontmatter-parser";
 import { BookOpen } from "@phosphor-icons/react/dist/ssr";
 
-// Internal meta pages that should not appear in the public wiki listing
-const HIDDEN_SLUGS = ["index", "log", "schema"];
+const HIDDEN_PREFIXES = ["index", "log/", "openkb/"];
 
 export default async function WikiPage() {
   await requireOrg();
 
-  const pages = await db
-    .select()
-    .from(wikiPages)
-    .where(not(inArray(wikiPages.slug, HIDDEN_SLUGS)))
-    .orderBy(wikiPages.category, wikiPages.title)
-    .limit(100);
+  const allSlugs = await listWikiPages();
+  const contentSlugs = allSlugs.filter(
+    (s) => !HIDDEN_PREFIXES.some((p) => s.startsWith(p) || s === p),
+  );
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const grouped = pages.reduce(
-    (acc: Record<string, any[]>, page: any) => {
+  // Batch reads to avoid unbounded fan-out on Blob API (P1-4 fix)
+  const BATCH_SIZE = 20;
+  const allPages: Array<{ slug: string; title: string; category: string; oneLiner: string | null; crossRefs: string[]; citedBy: Array<{ page: string; count: number }>; content: string; frontmatter: Record<string, unknown> } | null> = [];
+  const limitedSlugs = contentSlugs.slice(0, 200);
+  for (let i = 0; i < limitedSlugs.length; i += BATCH_SIZE) {
+    const batch = limitedSlugs.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (slug) => {
+        const raw = await readWikiPage(slug);
+        if (!raw) return null;
+        const parsed = parseWikiPage(raw);
+        return { slug, ...parsed };
+      }),
+    );
+    allPages.push(...batchResults);
+  }
+
+  const validPages = allPages.filter(Boolean) as NonNullable<
+    (typeof allPages)[number]
+  >[];
+
+
+  const grouped = validPages.reduce(
+    (acc, page) => {
       const cat = page.category;
       if (!acc[cat]) acc[cat] = [];
       acc[cat].push(page);
       return acc;
     },
-    {} as Record<string, typeof pages>
+    {} as Record<string, typeof validPages>,
   );
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   const categoryLabels: Record<string, string> = {
     regulation: "Quy định pháp luật",
     chemical: "Hóa chất",
     guide: "Hướng dẫn",
+    concept: "Chủ đề",
+    template: "Mẫu biểu",
+    hazard: "Nguy hiểm",
   };
 
   return (
@@ -54,8 +72,7 @@ export default async function WikiPage() {
               {categoryLabels[category] ?? category}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {(items as any[]).map((page: any) => (
+              {items.map((page) => (
                 <a
                   key={page.slug}
                   href={`/wiki/${page.slug}`}

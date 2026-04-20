@@ -1,25 +1,20 @@
-export const FALLBACK_WIKI_INDEX = `# Wiki Index
+// Run: npx tsx scripts/seed-wiki-to-blob.ts
+// One-time migration: writes fallback wiki data to Vercel Blob, then rebuilds indexes.
+// NOTE: The fallback data was originally in src/lib/chat/wiki-fallback-data.ts (now deleted).
+// It is inlined here for the migration script only.
+import { config } from "dotenv";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-## Regulation (Quy định pháp luật)
-- [circular-01-2026-tt-bct](circular-01-2026-tt-bct) - Thông tư 01/2026/TT-BCT: Quy định về an toàn hóa chất và SDS
-- [law-chemicals-2025](law-chemicals-2025) - Luật Hóa chất 2025 (69/2025/QH15)
-- [decree-26-2026-nd-cp](decree-26-2026-nd-cp) - Nghị định 26/2026/ND-CP: Quy định chi tiết Luật Hóa chất
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: join(__dirname, "../.env.local") });
 
-## Chemicals (Hóa chất)
-- [ghs-rev-10](ghs-rev-10) - Hệ thống hài hòa toàn cầu về phân loại và ghi nhãn hóa chất (GHS Rev 10)
-- [hazard-classification](hazard-classification) - Phân loại nguy hiểm hóa chất theo GHS
+import { writeWikiPage } from "../src/lib/wiki/blob-store";
 
-## Templates (Mẫu biểu)
-- [sds-template-vi](sds-template-vi) - Mẫu SDS tiếng Việt theo Phụ lục I Thông tư 01/2026/TT-BCT
-- [safety-card-template](safety-card-template) - Mẫu Phiếu an toàn hóa chất
+type FallbackPage = { title: string; category: string; contentMd: string };
 
-## Guide (Hướng dẫn)
-- [sds-preparation-guide](sds-preparation-guide) - Hướng dẫn soạn thảo Safety Data Sheet
-- [chemical-registration](chemical-registration) - Quy trình đăng ký hóa chất
-`;
-
-export const FALLBACK_WIKI_PAGES: Record<string, { title: string; category: string; contentMd: string }> = {
-  "circular-01-2026-tt-bct": {
+const FALLBACK_PAGES: Record<string, FallbackPage> = {
+  "regulation/vn-circular-01-2026-tt-bct": {
     title: "Thông tư 01/2026/TT-BCT",
     category: "regulation",
     contentMd: `# Thông tư 01/2026/TT-BCT
@@ -61,10 +56,9 @@ Mẫu SDS bao gồm 16 mục theo chuẩn GHS:
 2. Đánh giá và ký duyệt bởi chuyên gia an toàn hóa chất
 3. Lưu trữ bản mềm và bản cứng
 4. Cung cấp cho người sử dụng hóa chất
-5. Cập nhật định kỳ và khi có thay đổi
-`,
+5. Cập nhật định kỳ và khi có thay đổi`,
   },
-  "law-chemicals-2025": {
+  "regulation/vn-law-chemicals-2025": {
     title: "Luật Hóa chất 2025 (69/2025/QH15)",
     category: "regulation",
     contentMd: `# Luật Hóa chất 2025 (69/2025/QH15)
@@ -88,10 +82,9 @@ Luật quản lý hóa chất tại Việt Nam, được Quốc hội thông qua
 ### Chế tài xử phạt
 - Phạt tiền từ 10-200 triệu đồng cho vi phạm quy định SDS
 - Phạt tiền từ 50-500 triệu đồng cho vi phạm đăng ký hóa chất
-- Tước giấy phép hoạt động trong trường hợp vi phạm nghiêm trọng
-`,
+- Tước giấy phép hoạt động trong trường hợp vi phạm nghiêm trọng`,
   },
-  "decree-26-2026-nd-cp": {
+  "regulation/vn-decree-26-2026-nd-cp": {
     title: "Nghị định 26/2026/ND-CP",
     category: "regulation",
     contentMd: `# Nghị định 26/2026/ND-CP
@@ -113,12 +106,11 @@ Quy định chi tiết thi hành Luật Hóa chất 2025.
 ### Thẩm quyền quản lý
 - Bộ Công Thương: Quản lý hóa chất công nghiệp
 - Bộ Y tế: Quản lý hóa chất y tế
-- Bộ Nông nghiệp: Quản lý hóa chất nông nghiệp
-`,
+- Bộ Nông nghiệp: Quản lý hóa chất nông nghiệp`,
   },
-  "ghs-rev-10": {
+  "chemical/ghs-rev-10": {
     title: "GHS Rev 10 - Hệ thống hài hòa toàn cầu",
-    category: "chemicals",
+    category: "chemical",
     contentMd: `# GHS Rev 10 - Globally Harmonized System
 
 Hệ thống hài hòa toàn cầu về phân loại và ghi nhãn hóa chất (GHS Revision 10).
@@ -132,7 +124,7 @@ GHS phân loại hóa chất thành 29 lớp nguy hiểm chính:
 - Ăn mòn (2 loại)
 - Nguy hại khác (1 loại)
 
-### Pictogram (Biểu tượng cảnh báo)
+### Biểu tượng cảnh báo
 Có 9 pictogram tiêu chuẩn:
 1. 💀 Độc hại cấp tính
 2. ☢️ Phóng xạ
@@ -144,17 +136,16 @@ Có 9 pictogram tiêu chuẩn:
 8. ⚡ Nguy hại oxy hóa
 9. 💥 Cháy tự phát
 
-### Câu tín hiệu (Signal Words)
+### Câu tín hiệu
 - **Danger (Nguy hiểm)**: Nguy hiểm cấp cao
 - **Warning (Cảnh báo)**: Nguy hiểm cấp thấp hơn
 
-### Câu cảnh báo (Hazard Statements)
-Mã định dạng: Hxxx (ví dụ: H225 - Rất dễ cháy)
-`,
+### Câu cảnh báo
+Mã định dạng: Hxxx (ví dụ: H225 - Rất dễ cháy)`,
   },
-  "hazard-classification": {
+  "chemical/hazard-classification": {
     title: "Phân loại nguy hiểm hóa chất",
-    category: "chemicals",
+    category: "chemical",
     contentMd: `# Phân loại nguy hiểm hóa chất theo GHS
 
 ## Quy trình phân loại
@@ -177,12 +168,11 @@ Dựa trên lớp nguy hiểm để chọn pictogram phù hợp
 ## Ví dụ
 - **H2SO4 (Axit sulfuric)**: Ăn mòn (Category 1), Pictogram ☣️
 - **Benzene**: Độc hại cấp tính +致癌 (Carcinogenic), Pictogram ☠️
-- **Ethanol**: Dễ cháy (Category 2), Pictogram 🔥
-`,
+- **Ethanol**: Dễ cháy (Category 2), Pictogram 🔥`,
   },
-  "sds-template-vi": {
+  "template/sds-template-vi": {
     title: "Mẫu SDS tiếng Việt",
-    category: "templates",
+    category: "template",
     contentMd: `# Mẫu SDS tiếng Việt theo Phụ lục I Thông tư 01/2026/TT-BCT
 
 ## Cấu trúc 16 mục
@@ -209,12 +199,11 @@ Dựa trên lớp nguy hiểm để chọn pictogram phù hợp
 ## Yêu cầu định dạng
 - Font: Times New Roman, size 12
 - Mục in đậm, chữ cái đầu viết hoa
-- Bố cục rõ ràng, dễ đọc
-`,
+- Bố cục rõ ràng, dễ đọc`,
   },
-  "safety-card-template": {
+  "template/safety-card-template": {
     title: "Mẫu Phiếu an toàn hóa chất",
-    category: "templates",
+    category: "template",
     contentMd: `# Mẫu Phiếu an toàn hóa chất
 
 ## Nội dung bắt buộc
@@ -233,10 +222,9 @@ Dựa trên lớp nguy hiểm để chọn pictogram phù hợp
 ### Thông tin liên hệ
 - Người chịu trách nhiệm
 - Số điện thoại khẩn cấp
-- Cơ quan quản lý
-`,
+- Cơ quan quản lý`,
   },
-  "sds-preparation-guide": {
+  "guide/sds-preparation-guide": {
     title: "Hướng dẫn soạn thảo SDS",
     category: "guide",
     contentMd: `# Hướng dẫn soạn thảo Safety Data Sheet
@@ -276,10 +264,9 @@ Dựa trên lớp nguy hiểm để chọn pictogram phù hợp
 ### 7. Cập nhật
 - Theo dõi thay đổi
 - Cập nhật định kỳ
-- Thông báo cho người dùng
-`,
+- Thông báo cho người dùng`,
   },
-  "chemical-registration": {
+  "guide/chemical-registration": {
     title: "Quy trình đăng ký hóa chất",
     category: "guide",
     contentMd: `# Quy trình đăng ký hóa chất
@@ -307,7 +294,52 @@ Dựa trên lớp nguy hiểm để chọn pictogram phù hợp
 ## Bước 5: Báo cáo định kỳ
 - Báo cáo 6 tháng/lần
 - Báo cáo năm
-- Cập nhật khi có thay đổi
-`,
+- Cập nhật khi có thay đổi`,
   },
 };
+
+function mapLegacySlug(slug: string, _page: FallbackPage): string {
+  // Slugs in FALLBACK_PAGES are already namespaced (e.g., "regulation/vn-circular-01-2026-tt-bct")
+  return slug;
+}
+
+async function seed() {
+  console.log("Seeding wiki pages to Vercel Blob...\n");
+
+  let count = 0;
+  for (const [slug, page] of Object.entries(FALLBACK_PAGES)) {
+    const mappedSlug = mapLegacySlug(slug, page);
+
+    const fm = JSON.stringify(
+      {
+        title: page.title,
+        category: page.category,
+        updated_at: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+
+    const fullPage = `---\n${fm}\n---\n\n${page.contentMd}`;
+    await writeWikiPage(mappedSlug, fullPage);
+    console.log(`  Seeded: ${mappedSlug}`);
+    count++;
+  }
+
+  // Rebuild hierarchical index
+  const { rebuildHierarchicalIndex } = await import(
+    "../src/lib/wiki/hierarchical-index-builder"
+  );
+  const result = await rebuildHierarchicalIndex();
+  console.log(`\nIndex rebuilt: ${result.totalPages} pages`);
+  console.log(`  Root index: ${result.rootSize} chars`);
+  for (const [cat, size] of Object.entries(result.subIndexes)) {
+    console.log(`  ${cat}: ${size} chars`);
+  }
+  console.log(`\nDone. ${count} pages seeded.`);
+}
+
+seed().catch((err) => {
+  console.error("Seed failed:", err);
+  process.exit(1);
+});

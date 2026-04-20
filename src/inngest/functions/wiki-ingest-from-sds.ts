@@ -1,20 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db/client";
-import { chemicals, sdsExtractions, wikiPages } from "@/lib/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { chemicals, sdsExtractions } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { generateText } from "ai";
 import { geminiFlashLite } from "@/lib/ai/gemini-client";
 import { upsertWikiPage } from "@/lib/wiki/ingest";
 import { appendLogEntry, LOG_PREFIXES } from "@/lib/wiki/log-writer";
+import { readWikiPage, writeWikiPage, listWikiPages } from "@/lib/wiki/blob-store";
+import { parseWikiPage } from "@/lib/wiki/frontmatter-parser";
 
 export const wikiIngestFromSds = inngest.createFunction(
   {
     id: "wiki-ingest-from-sds",
     retries: 3,
     triggers: {
-      event: "chemical.enriched"
-    }
+      event: "chemical.enriched",
+    },
   },
   async ({ event, step }) => {
     const { chemicalId, casNumber, sdsId, orgId, extractionId } = event.data as {
@@ -25,7 +27,7 @@ export const wikiIngestFromSds = inngest.createFunction(
       extractionId?: string;
     };
 
-    // Step A: Read enriched chemical row + the specific extraction that produced this event
+    // Step A: Read enriched chemical row + the specific extraction
     const { chemical, extraction } = await step.run("fetch-data", async () => {
       const [chem] = await db
         .select()
@@ -33,7 +35,6 @@ export const wikiIngestFromSds = inngest.createFunction(
         .where(eq(chemicals.id, chemicalId))
         .limit(1);
 
-      // Use extractionId if available for deterministic lookup; fall back to latest
       let ext;
       if (extractionId) {
         [ext] = await db
@@ -149,13 +150,10 @@ Regulations: [[regulation/...]]
       return result.text;
     });
 
-    // Parse frontmatter: match only the first pair of --- delimiters to avoid
-    // breaking on markdown horizontal rules or code fences containing ---
+    // Parse frontmatter from LLM output
     let frontmatter: any = {};
     let contentMd = wikiContent;
 
-    // Coerce LLM output: ensure array fields are always string[], never scalars.
-    // Gemini may return "sources": "https://..." instead of ["https://..."].
     const ensureStringArray = (v: unknown): string[] | undefined => {
       if (!v) return undefined;
       if (Array.isArray(v)) return v.map(String).filter(Boolean);
@@ -163,51 +161,42 @@ Regulations: [[regulation/...]]
       return undefined;
     };
 
-    const firstDelim = wikiContent.indexOf('---');
-    if (firstDelim !== -1) {
-      const afterFirst = wikiContent.indexOf('\n', firstDelim) + 1;
-      const secondDelim = wikiContent.indexOf('---', afterFirst);
-      if (secondDelim !== -1) {
-        const fmText = wikiContent.slice(afterFirst, secondDelim).trim();
-        const afterSecond = wikiContent.indexOf('\n', secondDelim);
-        const candidateMd = afterSecond !== -1 ? wikiContent.slice(afterSecond + 1) : wikiContent.slice(secondDelim + 3);
-        try {
-          frontmatter = JSON.parse(fmText);
-          // Only update contentMd when frontmatter parsed successfully
-          contentMd = candidateMd;
-        } catch {
-          // LLM output may be YAML or invalid JSON — keep full wiki content
-          // and empty frontmatter. Existing metadata is preserved via fallback
-          // in Step C below.
-          console.warn('Failed to parse frontmatter as JSON, preserving full content');
-        }
-      }
+    // Use shared frontmatter parser (H5 fix: replaced manual parsing)
+    const parsed = parseWikiPage(wikiContent);
+    if (parsed.frontmatter && Object.keys(parsed.frontmatter).length > 0) {
+      frontmatter = parsed.frontmatter;
+      contentMd = parsed.content;
     }
 
-    // Step C: Upsert chemical wiki page
-    // One canonical page per CAS shared across orgs — wiki is reference material.
-    // Last-write-wins on content; org-specific data stays in the chemicals table.
-    // This is intentional: two orgs uploading the same chemical converge on one page.
+    // Step C: Upsert chemical wiki page to Blob
     const slug = `chemical/${casNumber}`;
     await step.run("upsert-wiki-page", async () => {
-      // Preserve original creation timestamp and metadata on re-ingest
-      const existingPage = await db
-        .select({
-          frontmatter: wikiPages.frontmatter,
-          oneLiner: wikiPages.oneLiner,
-        })
-        .from(wikiPages)
-        .where(eq(wikiPages.slug, slug))
-        .limit(1);
-      const existingFm = existingPage[0]?.frontmatter as Record<string, unknown> | undefined;
-      const existingCreated = existingFm?.created as string | undefined;
-      const existingOneLiner = existingPage[0]?.oneLiner;
+      // Read existing page from Blob to preserve metadata on re-ingest
+      const existingRaw = await readWikiPage(slug);
+      let existingFm: Record<string, unknown> | undefined;
+      let existingOneLiner: string | null = null;
 
-      // Merge: use Gemini's values when present, fall back to existing metadata.
-      // ensureStringArray coerces scalar LLM output into valid text[] for PG.
-      const safeSources = ensureStringArray(frontmatter.sources) || (existingFm?.sources as string[]) || [];
-      const safeCrossRefs = ensureStringArray(frontmatter.cross_refs) || (existingFm?.cross_refs as string[]) || [];
-      const safePictograms = ensureStringArray(frontmatter.pictograms) || (existingFm?.pictograms as string[]) || chemical.ghsPictograms || undefined;
+      if (existingRaw) {
+        const parsed = parseWikiPage(existingRaw);
+        existingFm = parsed.frontmatter;
+        existingOneLiner = parsed.oneLiner;
+      }
+
+      const existingCreated = existingFm?.created as string | undefined;
+
+      const safeSources =
+        ensureStringArray(frontmatter.sources) ||
+        (existingFm?.sources as string[]) ||
+        [];
+      const safeCrossRefs =
+        ensureStringArray(frontmatter.cross_refs) ||
+        (existingFm?.cross_refs as string[]) ||
+        [];
+      const safePictograms =
+        ensureStringArray(frontmatter.pictograms) ||
+        (existingFm?.pictograms as string[]) ||
+        chemical.ghsPictograms ||
+        undefined;
 
       await upsertWikiPage({
         slug,
@@ -223,13 +212,19 @@ Regulations: [[regulation/...]]
           updated: new Date().toISOString(),
           sources: safeSources,
           cross_refs: safeCrossRefs,
-          confidence: frontmatter.confidence || (existingFm?.confidence as string) || "medium",
+          confidence:
+            frontmatter.confidence ||
+            (existingFm?.confidence as string) ||
+            "medium",
           locale: frontmatter.locale || (existingFm?.locale as string) || "en",
           cas_number: chemical.casNumber || undefined,
           molecular_formula: chemical.formula || undefined,
           synonyms: chemical.synonymNames || undefined,
           ghs_classifications: chemical.ghsHazardCodes || undefined,
-          signal_word: frontmatter.signal_word || (existingFm?.signal_word as string) || undefined,
+          signal_word:
+            frontmatter.signal_word ||
+            (existingFm?.signal_word as string) ||
+            undefined,
           pictograms: safePictograms,
           reach_svhc: frontmatter.reach_svhc || undefined,
           vn_restricted: frontmatter.vn_restricted || undefined,
@@ -239,22 +234,23 @@ Regulations: [[regulation/...]]
       });
     });
 
-    // Step D: Update backlinks on hazard/regulation pages (bound ≤15 revisions)
-    // Uses atomic SQL jsonb ops to prevent lost-update races when concurrent
-    // chemical.enriched events touch the same hazard page.
+    // Step D: Ensure stub pages exist for related hazards/regulations.
+    // Stub creation only — no per-chemical cited_by mutation (avoids read-modify-write race on shared pages).
+    // Backlinks can be derived by scanning cross_refs across all pages, but are not
+    // currently materialized during index rebuild. If needed, add to rebuildHierarchicalIndex().
     const pagesTouched = await step.run("revise-related", async () => {
       const ghsCodes: string[] = chemical.ghsHazardCodes || [];
-      // Re-derive merged cross_refs: prefer Gemini output, fall back to existing page
-      const existingPage = await db
-        .select({ frontmatter: wikiPages.frontmatter })
-        .from(wikiPages)
-        .where(eq(wikiPages.slug, slug))
-        .limit(1);
-      const existingFm = existingPage[0]?.frontmatter as Record<string, unknown> | undefined;
-      const refs: string[] = ensureStringArray(frontmatter.cross_refs)
-        || (existingFm?.cross_refs as string[])
-        || [];
-      // Collect unique related page slugs from GHS codes + cross_refs
+
+      // Read existing page from Blob for cross_refs
+      const existingRaw = await readWikiPage(slug);
+      let refs: string[] = [];
+      if (existingRaw) {
+        const parsed = parseWikiPage(existingRaw);
+        refs = ensureStringArray(
+          (parsed.frontmatter as any)?.cross_refs,
+        ) || ensureStringArray(frontmatter.cross_refs) || [];
+      }
+
       const relatedSlugs = new Set<string>();
       for (const code of ghsCodes) {
         relatedSlugs.add(`hazard/${code.toLowerCase()}`);
@@ -264,71 +260,53 @@ Regulations: [[regulation/...]]
           relatedSlugs.add(ref);
         }
       }
-      // Cap at 15 to avoid runaway writes
+
       const targets = [...relatedSlugs].slice(0, 15);
       let touched = 0;
-      const missingTargets: string[] = [];
+
       for (const targetSlug of targets) {
-        // Atomic upsert: if the chemical slug already exists in cited_by,
-        // keep count as-is (idempotent re-ingest). Otherwise append it.
-        // This avoids the lost-update race of read-modify-write in JS.
-        // Note: @> requires RHS to be an array for array containment check.
-        const entry = JSON.stringify({ page: slug, count: 1 });
-        const entryArr = JSON.stringify([{ page: slug, count: 1 }]);
-        const result = await db
-          .update(wikiPages)
-          .set({
-            citedBy: sql`
-              CASE
-                WHEN COALESCE(${wikiPages.citedBy}, '[]'::jsonb) @> ${entryArr}::jsonb
-                THEN ${wikiPages.citedBy}
-                ELSE COALESCE(${wikiPages.citedBy}, '[]'::jsonb) || ${entry}::jsonb
-              END`,
-            updatedAt: new Date(),
-          })
-          .where(eq(wikiPages.slug, targetSlug))
-          .returning({ slug: wikiPages.slug });
-        if (result.length > 0) {
+        const targetRaw = await readWikiPage(targetSlug);
+        if (!targetRaw) {
+          // Create stub page only if it doesn't exist yet (no race — onConflictDoNothing equivalent)
+          const category = targetSlug.startsWith("hazard/")
+            ? "hazard"
+            : targetSlug.startsWith("regulation/")
+              ? "regulation"
+              : "topic";
+          const title =
+            targetSlug.split("/").pop()?.replace(/-/g, " ") || targetSlug;
+          const stubFm = JSON.stringify(
+            {
+              type: category,
+              slug: targetSlug,
+              title,
+              category,
+              created: new Date().toISOString(),
+              updated: new Date().toISOString(),
+            },
+            null,
+            2,
+          );
+          const stubPage = `---\n${stubFm}\n---\n\n# ${title}\n\n*This page is a stub. Content will be added automatically.*`;
+          await writeWikiPage(targetSlug, stubPage);
           touched++;
         } else {
-          // Target page doesn't exist yet — create a stub so backlinks
-          // aren't lost. The stub will be filled in when the page is
-          // properly created (by seed scripts or future ingest).
-          missingTargets.push(targetSlug);
+          touched++;
         }
       }
 
-      // Create stub pages for targets that didn't exist, preserving backlinks
-      for (const targetSlug of missingTargets) {
-        const category = targetSlug.startsWith("hazard/") ? "hazard"
-          : targetSlug.startsWith("regulation/") ? "regulation"
-          : "topic";
-        const title = targetSlug.split("/").pop()?.replace(/-/g, " ") || targetSlug;
-        await db
-          .insert(wikiPages)
-          .values({
-            slug: targetSlug,
-            category,
-            title,
-            frontmatter: { type: category, slug: targetSlug, title },
-            contentMd: `# ${title}\n\n*This page is a stub. Content will be added automatically.*`,
-            citedBy: [{ page: slug, count: 1 }],
-          })
-          .onConflictDoNothing();
-      }
-      touched += missingTargets.length;
       return touched;
     });
 
-    // Step E: Index rebuild is handled by the wiki.index.rebuild event emitted
-    // from extract-sds after all chemicals are processed. This avoids concurrent
-    // handlers overwriting each other's index snapshot.
-
-    // Step F: Append to log.md
+    // Step F: Append to log
     await step.run("append-log", async () => {
-      await appendLogEntry(LOG_PREFIXES.INGEST, { sds: sdsId, cas: casNumber, "pages-touched": pagesTouched });
+      await appendLogEntry(LOG_PREFIXES.INGEST, {
+        sds: sdsId,
+        cas: casNumber,
+        "pages-touched": pagesTouched,
+      });
     });
 
     return { sdsId, casNumber, pagesTouched };
-  }
+  },
 );

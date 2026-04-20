@@ -69,6 +69,19 @@ The MVP rollout for the MSDS Platform is complete. All 9 implementation phases d
 - Build passing green, production-ready.
 - Ready for Asia Shine design partner conversion.
 
+## Phase 12: Wiki Enhancement — OpenKB + Blob Migration (Week 17-20) — ✅ Done (2026-04-20)
+- ✅ Migrated wiki storage from mocked Postgres to Vercel Blob (`.md` files under `wiki/` prefix).
+- ✅ Hierarchical sub-indexes for 1000+ chemical page scale (root → category → page).
+- ✅ New modules: `blob-store.ts`, `frontmatter-parser.ts`, `hierarchical-index-builder.ts`.
+- ✅ Chat retrieval upgraded to 3-hop: root index → sub-index → page.
+- ✅ Removed `wiki_pages` DB table from schema; deleted `wiki-fallback-data.ts` and `index-builder.ts`.
+- ✅ New scripts: `seed-wiki-to-blob.ts`, `openkb-sync-to-blob.ts`.
+- ✅ Daily log files (`log/YYYY-MM-DD.md`) replace single `log` page.
+- ✅ Linter and Inngest functions read/write wiki pages via Blob.
+- OpenKB CLI integration for regulation document compilation (PageIndex for 50+ page docs) — deferred to Phase 13.
+- Cross-document concept synthesis (e.g., "Flammable Solvents" linking chemicals + regulations) — deferred to Phase 13.
+- Obsidian-like graph UI with D3.js (force-directed graph, backlinks panel, wikilink navigation) — deferred to Phase 13.
+
 ---
 
 ## Post-MVP Roadmap
@@ -86,8 +99,8 @@ The MVP rollout for the MSDS Platform is complete. All 9 implementation phases d
 - Activity feed and collaboration features.
 - Shared review queue for extraction validation.
 
-### Phase 12: Advanced Retrieval (Week 17-18)
-- Migrate from index-driven to hybrid BM25 + vector search if wiki exceeds 500 pages.
-- Implement Postgres `tsvector` for full-text search.
-- Optional: pgvector for semantic search with re-ranking.
-- Query performance optimization and caching.
+### Phase 13: Wiki Enhancement — OpenKB + Graph UI (Week 21-24)
+- OpenKB CLI integration for regulation document compilation (PageIndex for 50+ page docs).
+- Cross-document concept synthesis (e.g., "Flammable Solvents" linking chemicals + regulations).
+- Obsidian-like graph UI with D3.js (force-directed graph, backlinks panel, wikilink navigation).
+- No vector DB — stays index-driven with pre-compiled concept pages.
