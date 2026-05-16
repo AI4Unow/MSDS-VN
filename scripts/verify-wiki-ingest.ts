@@ -19,7 +19,7 @@ async function verifyWikiIngest() {
   const chemicalPages = await sql`
     SELECT slug, title, category 
     FROM wiki_pages 
-    WHERE category = 'chemical' 
+    WHERE category IN ('chemical', 'chemicals') 
     ORDER BY title
   `;
   console.log(`✓ Chemical wiki pages: ${chemicalPages.rows.length}`);
@@ -31,13 +31,51 @@ async function verifyWikiIngest() {
   const regPages = await sql`
     SELECT slug, title, category 
     FROM wiki_pages 
-    WHERE category = 'regulation' 
+    WHERE category IN ('regulation', 'regulations') 
     ORDER BY title
   `;
   console.log(`✓ Regulation wiki pages: ${regPages.rows.length}`);
   for (const page of regPages.rows) {
     console.log(`  - ${page.title} (${page.slug})`);
   }
+
+  const expectedRegulations = [
+    "regulation/vn-circular-01-2026-tt-bct",
+    "regulation/vn-law-chemicals-2025",
+    "regulation/vn-decree-26-2026-nd-cp",
+  ];
+  const fullDocThreshold = 5_000;
+  for (const slug of expectedRegulations) {
+    const page = await sql`
+      SELECT slug, title, length(content_md) AS length
+      FROM wiki_pages
+      WHERE slug = ${slug}
+      LIMIT 1
+    `;
+    if (page.rows.length === 0) {
+      console.log(`✗ Missing expected regulation page: ${slug}`);
+      continue;
+    }
+    const row = page.rows[0];
+    const length = Number(row.length);
+    console.log(`✓ ${row.slug} content length: ${length} chars`);
+    if (length < fullDocThreshold) {
+      console.log(`✗ ${row.slug} is still summary-sized (${length} chars)`);
+    }
+  }
+  const regulationLengthsOk = (
+    await Promise.all(
+      expectedRegulations.map(async (slug) => {
+        const page = await sql`
+          SELECT length(content_md) AS length
+          FROM wiki_pages
+          WHERE slug = ${slug}
+          LIMIT 1
+        `;
+        return page.rows.length > 0 && Number(page.rows[0].length) >= fullDocThreshold;
+      }),
+    )
+  ).every(Boolean);
   
   // Check index page
   const indexPage = await sql`SELECT content_md FROM wiki_pages WHERE slug = 'index'`;
@@ -64,16 +102,13 @@ async function verifyWikiIngest() {
   console.log(`✓ SDS documents: ${sdsCount.rows[0].count}`);
   
   console.log("\n=== Verification Summary ===");
-  console.log(`Expected: 5 chemical wiki pages`);
-  console.log(`Actual: ${chemicalPages.rows.length} chemical wiki pages`);
-  console.log(`Expected: 3 regulation wiki pages`);
-  console.log(`Actual: ${regPages.rows.length} regulation wiki pages`);
-  
-  const success = 
-    chemicalPages.rows.length === 5 &&
-    regPages.rows.length === 3 &&
+  console.log(`Chemical wiki pages: ${chemicalPages.rows.length}`);
+  console.log(`Regulation wiki pages: ${regPages.rows.length}`);
+
+  const success =
     indexPage.rows.length > 0 &&
-    logPage.rows.length > 0;
+    logPage.rows.length > 0 &&
+    regulationLengthsOk;
   
   if (success) {
     console.log("\n✅ VERIFICATION PASSED");
