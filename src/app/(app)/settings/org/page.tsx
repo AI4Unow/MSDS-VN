@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { CardAccessForm } from "./card-access-form";
 import { UpdateOrgNameForm } from "./update-org-name-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function OrgSettingsPage() {
   const { orgId } = await requireOrg();
 

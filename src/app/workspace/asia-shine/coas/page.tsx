@@ -3,6 +3,8 @@ import { asCoas, asSuppliers, asProducts } from "@/lib/db/schema/asia-shine";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function CoasPage() {
   const pendingCoas = await db
     .select({ coa: asCoas, supplier: asSuppliers, product: asProducts })

@@ -3,6 +3,8 @@ import { chairmanKpis, chairmanComponentStatus } from "@/lib/db/schema/chairman"
 import { KpiGauge } from "@/components/chairman/kpi-gauge";
 import { ArchitectureDiagram } from "@/components/chairman/architecture-diagram";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const kpiData = await db.select().from(chairmanKpis);
   const components = await db.select().from(chairmanComponentStatus);

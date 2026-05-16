@@ -2,6 +2,8 @@ import { db } from "@/lib/db/client";
 import { mdDataSources, mdDataQualityIssues } from "@/lib/db/schema/master-data";
 import { eq } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function QualityDashboardPage() {
   const sources = await db.select().from(mdDataSources);
   const openIssues = await db

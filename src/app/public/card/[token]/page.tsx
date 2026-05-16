@@ -7,6 +7,8 @@ import { safetyCards } from "@/lib/db/schema/safety-cards";
 import { sdsDocuments } from "@/lib/db/schema/sds-documents";
 import { sdsExtractions } from "@/lib/db/schema/sds-extractions";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   robots: "noindex",
 };

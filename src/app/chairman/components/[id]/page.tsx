@@ -3,6 +3,8 @@ import { chairmanComponentStatus } from "@/lib/db/schema/chairman";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default async function ComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [component] = await db

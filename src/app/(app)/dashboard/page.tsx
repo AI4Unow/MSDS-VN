@@ -5,6 +5,8 @@ import { sdsDocuments, chemicals } from "@/lib/db/schema";
 import { requireOrg } from "@/lib/auth/require-org";
 import { eq, count } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const { orgId } = await requireOrg();
 

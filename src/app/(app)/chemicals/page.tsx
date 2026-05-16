@@ -4,6 +4,8 @@ import { chemicals } from "@/lib/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { Flask, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
+export const dynamic = "force-dynamic";
+
 export default async function ChemicalsPage({
   searchParams,
 }: {

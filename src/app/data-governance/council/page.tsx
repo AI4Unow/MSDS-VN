@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/client";
 import { mdGovernanceDecisions } from "@/lib/db/schema/master-data";
 
+export const dynamic = "force-dynamic";
+
 export default async function CouncilPage() {
   const recentDecisions = await db
     .select()

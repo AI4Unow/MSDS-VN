@@ -3,6 +3,8 @@ import { db } from "@/lib/db/client";
 import { auditLog } from "@/lib/db/schema/audit-log";
 import { eq, desc } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function AuditLogPage() {
   const { orgId } = await requireOrg();
 

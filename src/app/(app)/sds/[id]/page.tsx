@@ -8,6 +8,8 @@ import { SdsDetailClient } from "./detail-client";
 import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 
+export const dynamic = "force-dynamic";
+
 export default async function SdsDetailPage({
   params,
 }: {

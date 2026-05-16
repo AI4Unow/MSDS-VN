@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/client";
 import { chairmanSubsidiaryReadiness } from "@/lib/db/schema/chairman";
 
+export const dynamic = "force-dynamic";
+
 export default async function SubsidiariesPage() {
   const subsidiaries = await db.select().from(chairmanSubsidiaryReadiness);
 

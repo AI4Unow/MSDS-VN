@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/client";
 import { chairmanRisks } from "@/lib/db/schema/chairman";
 
+export const dynamic = "force-dynamic";
+
 export default async function RisksPage() {
   const riskList = await db.select().from(chairmanRisks);
 

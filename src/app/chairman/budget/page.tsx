@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/client";
 import { chairmanComponentStatus } from "@/lib/db/schema/chairman";
 
+export const dynamic = "force-dynamic";
+
 export default async function BudgetPage() {
   const components = await db.select().from(chairmanComponentStatus);
   const totalAllocated = components.reduce((s, c) => s + (c.budgetAllocated ?? 0), 0);

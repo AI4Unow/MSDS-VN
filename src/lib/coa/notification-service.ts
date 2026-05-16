@@ -1,6 +1,10 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | undefined;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 export async function sendNotification(params: {
   type: "coa_flagged" | "coa_approved" | "coa_rejected";
@@ -23,7 +27,7 @@ export async function sendNotification(params: {
   const safeCoaId = params.coaId.replace(/[^a-zA-Z0-9_-]/g, "");
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: process.env.AUTH_EMAIL_FROM ?? "noreply@sds-platform.example",
       to: recipients,
       subject: subjects[params.type] ?? `[COA] ${params.type}: ${safeCoaId}`,

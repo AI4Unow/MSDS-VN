@@ -6,6 +6,8 @@ import { eq, and, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { FileText, QrCode, Download } from "@phosphor-icons/react/dist/ssr";
 
+export const dynamic = "force-dynamic";
+
 export default async function SafetyCardPage({
   params,
 }: {

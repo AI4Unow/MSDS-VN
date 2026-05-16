@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/client";
 import { asSuppliers } from "@/lib/db/schema/asia-shine";
 
+export const dynamic = "force-dynamic";
+
 export default async function SuppliersPage() {
   const suppliers = await db.select().from(asSuppliers);
 
