@@ -1,17 +1,23 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db/client";
 import { users, organizations } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import {
+  accounts,
+  sessions,
+  verificationTokens,
+} from "@/lib/db/schema/auth";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
-  /* adapter: DrizzleAdapter(db, {
+  adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }), */
+  }),
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60,
@@ -27,8 +33,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     }),
   ],
   events: {
-    async signIn({ user: _user, isNewUser: _isNewUser }) {
-      // Mock db insertion
+    async signIn({ user: eventUser, isNewUser }) {
+      if (isNewUser && eventUser?.id) {
+        await bootstrapPersonalOrg({
+          id: eventUser.id,
+          email: eventUser.email,
+          name: eventUser.name,
+        });
+      }
     },
   },
   pages: {
@@ -38,13 +50,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     async session({ session, user }) {
       if (session.user) {
         session.user.orgId = user.orgId;
+        session.user.role = user.role;
       }
       return session;
     },
   },
 });
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function bootstrapPersonalOrg(user: {
   id: string;
   email?: string | null;

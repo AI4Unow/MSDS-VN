@@ -1,4 +1,5 @@
 import {
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -7,6 +8,14 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
+
+export const userRoleEnum = pgEnum("user_role", [
+  "chairman",
+  "qc_manager",
+  "sales_rep",
+  "data_steward",
+  "viewer",
+]);
 
 export const users = pgTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -17,6 +26,7 @@ export const users = pgTable("users", {
   orgId: uuid("org_id").references(() => organizations.id, {
     onDelete: "set null",
   }),
+  role: userRoleEnum("role").default("viewer"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
